@@ -18,5 +18,3 @@ with gr.Blocks() as demo:
     for c in [component, component]:
         c()
     gr.Textbox("World")
-
-demo.launch()
