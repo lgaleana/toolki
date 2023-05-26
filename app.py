@@ -150,27 +150,27 @@ def execute_task(id_: int, prompt: str, *vars):
 
 with gr.Blocks() as demo:
     # Initial layout
+    gr.Markdown("""
+    # Toolkit
+    Define input variables to be used in your tasks.
+    <br>Task outputs can be used in subsequent tasks.
+    <br>
+    <br>AI tasks call into ChatGPT to perform actions.
+    <br>Chain inputs and tasks to build an E2E application.
+    <br>
+    <br>Example prompt: "Translate the following text into spanish and add {v0} more sentences: {t0}".
+    """)
     for i in all_inputs.values():
         i.render()
-    input_error = gr.HighlightedText(
-        [("Repeated variable names in inputs. Please pick different names.", "Error")],
-        show_label=False,
-        visible=False,
-    )
     with gr.Row():
         add_input_btn = gr.Button("Add input variable")
         remove_input_btn = gr.Button("Remove input variable")
-    execute_btn = gr.Button("Execute")
     for t in all_tasks.values():
         t.render()
-    task_error = gr.HighlightedText(
-        [("Repeated variable names in tasks. Please pick different names.", "Error")],
-        show_label=False,
-        visible=False,
-    )
     with gr.Row():
         add_task_btn = gr.Button("Add task")
         remove_task_btn = gr.Button("Remove task")
+    execute_btn = gr.Button("Execute")
 
     # Edit layout
     add_input_btn.click(
