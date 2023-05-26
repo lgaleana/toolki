@@ -26,6 +26,10 @@ class Input:
 
 
 class AITask:
+    @property
+    def vars(self):
+        return [self.prompt]
+
     def render(self, visible: bool) -> gr.Box:
         with gr.Box(visible=visible) as gr_component:
             gr.Markdown(f"AI task")
@@ -52,22 +56,23 @@ class AITask:
 
 
 class Component:
-    def __init__(self, id_: int, internal: Union[Input, AITask], visible: bool = False):
+    def __init__(self, id_: int, internal: Union[Input, AITask], visible: str = "0"):
         self._id = id_
         self.component_id: gr.Textbox
-        self._internal = internal
+        self.internal = internal
         self.gr_component = gr.Box
-        self.visible = visible
+        self._visible = visible
         self.output_name: gr.Textbox
         self.output: gr.Textbox
         self.source: gr.Textbox
 
     def render(self) -> None:
         self.component_id = gr.Textbox(value=str(self._id), visible=False)
-        self.source = gr.Textbox(value=self._internal.__class__.__name__, visible=False)
-        self.gr_component = self._internal.render(self.visible)
-        self.output_name = self._internal.output_name
-        self.output = self._internal.output
+        self.source = gr.Textbox(value=self.internal.__class__.__name__, visible=False)
+        self.visible = gr.Textbox(value=self._visible, visible=False)
+        self.gr_component = self.internal.render(bool(self._visible))
+        self.output_name = self.internal.output_name
+        self.output = self.internal.output
 
 
 class Variable(NamedTuple):
@@ -80,12 +85,9 @@ class Variable(NamedTuple):
 all_inputs = [Component(i, Input()) for i in range(MAX_INPUTS)]
 all_tasks = [Component(i, AITask()) for i in range(MAX_TASKS)]
 all_components = all_inputs + all_tasks
-all_variables = {}  # Will be updated once rendered
 
-all_inputs[0].visible = True
-all_tasks[0].visible = True
-next_input = 1
-next_task = 1
+all_inputs[0]._visible = "1"
+all_tasks[0]._visible = "1"
 
 
 def _update_components(i: int, max: int):
@@ -125,13 +127,6 @@ def remove_task():
 def execute(output_names, outputs):
     for output_name in output_names:
         print(output_name)
-
-
-def update_scope_variables(component_id, source, output_name, output):
-    all_variables[f"{source}.{component_id}"] = Variable(
-        component_id, source, output_name, output
-    )
-    print(all_variables)
 
 
 with gr.Blocks() as demo:
@@ -179,13 +174,5 @@ with gr.Blocks() as demo:
         inputs=[],
         outputs=[t.gr_component for t in all_tasks],
     )
-
-    # Execution
-    for c in all_components:
-        c.output_name.change(
-            update_scope_variables,
-            inputs=[c.component_id, c.source, c.output_name, c.output],
-            outputs=[],
-        )
 
 demo.launch()
