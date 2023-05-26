@@ -2,7 +2,7 @@ import re
 
 import gradio as gr
 
-from components import AITask, all_inputs, all_tasks, Input, MAX_INPUTS, MAX_TASKS
+from components import all_inputs, all_tasks, Input, MAX_INPUTS, MAX_TASKS, Task
 
 
 def add_input(*visibility):
@@ -59,19 +59,32 @@ def _clear_error():
     return gr.HighlightedText.update(value=None, visible=False)
 
 
-def execute_task(id_: int, prompt: str, prev_error_value, *vars):
-    inputs = vars[:MAX_INPUTS]
-    task_outputs = vars[MAX_INPUTS:]
+def execute_task(id_: int, prev_error_value, n_inputs, *vars_in_scope):
+    """
+    Params:
+        - id_: This will tell us which task to execute.
+        - prev_error_value: I carry around whether there is an error in the execution, to be displayed at the end.
+        - n_inputs: How many inputs does this task have?
+        - vars: All variables in scope. This can be a) task inputs, input varaibles or previous task outputs.
+    """
+    n_inputs = int(n_inputs)
+    task_inputs = vars_in_scope[:n_inputs]
+    input_vars = vars_in_scope[n_inputs:MAX_INPUTS]
+    task_outputs = vars_in_scope[MAX_INPUTS:]
+    non_empty_task_inputs = [ti for ti in task_inputs if ti]
 
-    prompt_vars = set(re.findall("{(.*?)}", prompt))
-    vars_in_scope = {
-        f"{Input.vname}{i}": input_ for i, input_ in enumerate(inputs) if input_
+    # Put all defined variables into a dict, with names (except task inputs)
+    vars = {
+        f"{Input.vname}{i}": input_ for i, input_ in enumerate(input_vars) if input_
     }
-    vars_in_scope.update(
-        {f"{AITask.vname}{i}": task for i, task in enumerate(task_outputs)}
+    vars.update(
+        {f"{Task.vname}{i}": task for i, task in enumerate(task_outputs)}
     )
-    undefined_vars = prompt_vars - vars_in_scope.keys()
+    # Get all variables referenced within the task inputs
+    prompt_vars = {v for ti in non_empty_task_inputs for v in re.findall("{(.*?)}", ti)}
 
+    # If there is an undefined variable referenced, HighlightedText will signal the error.
+    undefined_vars = prompt_vars - vars.keys()
     if len(undefined_vars) > 0:
         return None, gr.HighlightedText.update(
             value=[
@@ -86,7 +99,12 @@ def execute_task(id_: int, prompt: str, prev_error_value, *vars):
         value=prev_error_value, visible=prev_error_value is not None
     )
 
-    if prompt:
-        return all_tasks[id_].execute(prompt, vars_in_scope), error_update
-
-    return None, error_update
+    if non_empty_task_inputs:
+        # Execute the task logic
+        return (
+            all_tasks[id_].execute(*non_empty_task_inputs, vars),
+            error_update,
+        )
+    else:
+        # There is no actionf or this task.
+        return None, error_update

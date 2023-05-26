@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import gradio as gr
 
@@ -23,11 +23,11 @@ class Component(ABC):
 
     @abstractmethod
     def _render(self, id_: int, visible: bool):
-        pass
+        ...
 
     @abstractmethod
     def _execute(self):
-        pass
+        ...
 
     def render(self) -> None:
         self.component_id = gr.Number(value=self._id, visible=False)
@@ -35,7 +35,7 @@ class Component(ABC):
         self.gr_component = self._render(self._id, self._initial_visibility)
 
     def execute(self, *args):
-        print(f"Executing component :: {self._source}.{self._id}")
+        print(f"Executing {self._source} :: {self._id}")
         return self._execute(*args)
 
 
@@ -51,13 +51,31 @@ class Input(Component):
         )
         return self.output
 
-    def _execute(self):
+    def _execute(self) -> None:
         pass
 
 
-class AITask(Component):
+class Task(Component, ABC):
     vname = "t"
 
+    def __init__(self, id_: int, visible: bool = False):
+        super().__init__(id_, visible)
+        self.output: gr.Textbox
+
+    @abstractmethod
+    def inputs(self) -> List:
+        ...
+
+    @property
+    def _n_inputs(self) -> int:
+        return len(self.inputs())
+
+    def render(self) -> None:
+        super().render()
+        self.n_inputs = gr.Number(value=self._n_inputs, visible=False)
+
+
+class AITask(Task):
     def _render(self, id_: int, visible: bool) -> gr.Box:
         with gr.Box(visible=visible) as gr_component:
             gr.Markdown(f"AI task")
@@ -79,6 +97,9 @@ class AITask(Component):
         if prompt:
             formatted_prompt = prompt.format(**prompt_vars)
             return ai.llm.next([{"role": "user", "content": formatted_prompt}])
+
+    def inputs(self) -> List[gr.Textbox]:
+        return [self.prompt]
 
 
 MAX_INPUTS = 10
