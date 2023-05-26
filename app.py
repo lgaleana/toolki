@@ -64,7 +64,7 @@ with gr.Blocks() as demo:
     for i, task in all_tasks.items():
         execution_event = execution_event.then(
             a.execute_task,
-            inputs=[task.component_id, task.internal.prompt, error_message] + a._get_all_vars_up_to(i),  # type: ignore
+            inputs=[task.component_id, task.prompt, error_message] + a._get_all_vars_up_to(i),  # type: ignore
             outputs=[task.output, error_message],
         )
 
