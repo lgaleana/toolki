@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Optional, Union
 
 import gradio as gr
@@ -133,24 +134,47 @@ def remove_task(*visibility):
             )
 
 
-def execute_task(id_: int, prompt: str, *vars):
+def _clear_error():
+    return gr.HighlightedText.update(value=None, visible=False)
+
+
+def execute_task(id_: int, prompt: str, prev_error_value, *vars):
     inputs = vars[:MAX_INPUTS]
     task_outputs = vars[MAX_INPUTS:]
 
-    prompt_vars = {
+    prompt_vars = set(re.findall("{(.*?)}", prompt))
+    vars_in_scope = {
         f"{Input.vname}{i}": input_ for i, input_ in enumerate(inputs) if input_
     }
-    prompt_vars.update(
+    vars_in_scope.update(
         {f"{AITask.vname}{i}": task for i, task in enumerate(task_outputs)}
+    )
+    undefined_vars = prompt_vars - vars_in_scope.keys()
+
+    if len(undefined_vars) > 0:
+        return None, gr.HighlightedText.update(
+            value=[
+                (
+                    f"The following variables are being used before being defined :: {undefined_vars}. Please check your tasks.",
+                    "ERROR",
+                )
+            ],
+            visible=True,
+        )
+    error_update = gr.HighlightedText.update(
+        value=prev_error_value, visible=prev_error_value is not None
     )
 
     if prompt:
-        return all_tasks[id_].execute(prompt, prompt_vars)
+        return all_tasks[id_].execute(prompt, vars_in_scope), error_update
+
+    return None, error_update
 
 
 with gr.Blocks() as demo:
     # Initial layout
-    gr.Markdown("""
+    gr.Markdown(
+        """
     # Toolkit
     Define input variables to be used in your tasks.
     <br>Task outputs can be used in subsequent tasks.
@@ -159,7 +183,8 @@ with gr.Blocks() as demo:
     <br>Chain inputs and tasks to build an E2E application.
     <br>
     <br>Example prompt: "Translate the following text into spanish and add {v0} more sentences: {t0}".
-    """)
+    """
+    )
     for i in all_inputs.values():
         i.render()
     with gr.Row():
@@ -170,6 +195,7 @@ with gr.Blocks() as demo:
     with gr.Row():
         add_task_btn = gr.Button("Add task")
         remove_task_btn = gr.Button("Remove task")
+    error_message = gr.HighlightedText(value=None, visible=False)
     execute_btn = gr.Button("Execute")
 
     # Edit layout
@@ -200,15 +226,13 @@ with gr.Blocks() as demo:
 
     # Sequential execution
     execution_event = execute_btn.click(
-        execute_task,
-        inputs=[all_tasks[0].component_id, all_tasks[0].internal.prompt] + _get_all_vars_up_to(0),  # type: ignore
-        outputs=[all_tasks[0].output],
+        _clear_error, inputs=[], outputs=[error_message]
     )
-    for i, task in list(all_tasks.items())[1:]:
+    for i, task in all_tasks.items():
         execution_event = execution_event.then(
             execute_task,
-            inputs=[task.component_id, task.internal.prompt] + _get_all_vars_up_to(i),  # type: ignore
-            outputs=[task.output],
+            inputs=[task.component_id, task.internal.prompt, error_message] + _get_all_vars_up_to(i),  # type: ignore
+            outputs=[task.output, error_message],
         )
 
 demo.launch()
