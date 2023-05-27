@@ -72,7 +72,9 @@ with gr.Blocks() as demo:
 
     # Sequential execution
     execution_event = execute_btn.click(
-        a._clear_error, inputs=[], outputs=[error_message]
+        lambda _: gr.HighlightedText.update(value=None, visible=False),
+        inputs=[],
+        outputs=[error_message],
     )
     for i, task in all_tasks.items():
         execution_event = execution_event.then(

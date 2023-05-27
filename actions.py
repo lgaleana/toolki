@@ -75,10 +75,6 @@ def remove_task(*visibility):
             )
 
 
-def _clear_error():
-    return gr.HighlightedText.update(value=None, visible=False)
-
-
 def execute_task(id_: int, prev_error_value, n_task_inputs, *vars_in_scope):
     """
     Params:
