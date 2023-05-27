@@ -140,39 +140,40 @@ class Task:
 
     def __init__(self, id_: int):
         self._id = id_
-        self._active_task = AITask.NAME  # Default
-        self._inner_tasks = {t.NAME: t(self._id, False) for t in self.AVAILABLE_TASKS}
+        self._active_index = 0  # Default
+        self._inner_tasks = [t(self._id, False) for t in self.AVAILABLE_TASKS]
 
     def render(self) -> None:
-        for t in self._inner_tasks.values():
+        self.active_index = gr.Number(self._active_index, visible=False)
+        for t in self._inner_tasks:
             t.render()
 
     @property
     def component_id(self) -> gr.Textbox:
-        return self._inner_tasks[self._active_task].component_id
+        return self._inner_tasks[self._active_index].component_id
 
     @property
     def visibilities(self) -> List[gr.Number]:
-        return [t.visible for t in self._inner_tasks.values()]
+        return [t.visible for t in self._inner_tasks]
 
     @property
     def gr_components(self) -> List[gr.Box]:
-        return [t.gr_component for t in self._inner_tasks.values()]
+        return [t.gr_component for t in self._inner_tasks]
 
     @property
     def output(self) -> gr.Textbox:
-        return self._inner_tasks[self._active_task].output
+        return self._inner_tasks[self._active_index].output
 
     @property
     def inputs(self) -> List[gr.Textbox]:
-        return self._inner_tasks[self._active_task].inputs()
+        return self._inner_tasks[self._active_index].inputs()
 
     @property
     def n_inputs(self) -> int:
-        return self._inner_tasks[self._active_task].n_inputs
+        return self._inner_tasks[self._active_index].n_inputs
 
     def execute(self, *args):
-        inner_task = self._inner_tasks[self._active_task]
+        inner_task = self._inner_tasks[self._active_index]
         print(f"Executing {inner_task._source}: {inner_task._id}")
         return inner_task.execute(*args)
 
