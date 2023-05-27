@@ -1,7 +1,13 @@
 import gradio as gr
 
 import actions as a
-from components import all_inputs, all_tasks
+from components import AITask, all_inputs, all_tasks, VisitURL
+
+
+def _get_all_vars_up_to(to: int):
+    return [in_.output for in_ in all_inputs.values()] + [
+        t.output for i, t in all_tasks.items() if i < to
+    ]
 
 
 with gr.Blocks() as demo:
@@ -11,6 +17,7 @@ with gr.Blocks() as demo:
     # Toolkit
     Define input variables to be used in your tasks.
     <br>Task outputs can be used in subsequent tasks.
+    <br>5 input variables and 10 tasks allowed (for now).
     <br>
     <br>AI tasks call into ChatGPT to perform actions.
     <br>Chain inputs and tasks to build an E2E application.
@@ -25,6 +32,12 @@ with gr.Blocks() as demo:
         remove_input_btn = gr.Button("Remove input variable")
     for t in all_tasks.values():
         t.render()
+    task_picker = gr.Dropdown(
+        [AITask.NAME, VisitURL.NAME],
+        value=AITask.NAME,
+        label="Pick a new Task",
+        type="index",
+    )
     with gr.Row():
         add_task_btn = gr.Button("Add task")
         remove_task_btn = gr.Button("Remove task")
@@ -46,15 +59,15 @@ with gr.Blocks() as demo:
     )
     add_task_btn.click(
         a.add_task,
-        inputs=[i.visible for i in all_tasks.values()],
-        outputs=[i.gr_component for i in all_tasks.values()]  # type: ignore
-        + [i.visible for i in all_tasks.values()],
+        inputs=[task_picker] + [v for t in all_tasks.values() for v in t.visibilities],  # type: ignore
+        outputs=[c for t in all_tasks.values() for c in t.gr_components]  # type: ignore
+        + [v for t in all_tasks.values() for v in t.visibilities],
     )
     remove_task_btn.click(
         a.remove_task,
-        inputs=[i.visible for i in all_tasks.values()],
-        outputs=[i.gr_component for i in all_tasks.values()]  # type: ignore
-        + [i.visible for i in all_tasks.values()],
+        inputs=[v for t in all_tasks.values() for v in t.visibilities],  # type: ignore
+        outputs=[c for t in all_tasks.values() for c in t.gr_components]  # type: ignore
+        + [v for t in all_tasks.values() for v in t.visibilities],
     )
 
     # Sequential execution
@@ -64,7 +77,9 @@ with gr.Blocks() as demo:
     for i, task in all_tasks.items():
         execution_event = execution_event.then(
             a.execute_task,
-            inputs=[task.component_id, error_message, task.n_inputs] + task.inputs() + a._get_all_vars_up_to(i),  # type: ignore
+            inputs=[task.component_id, error_message, task.n_inputs]
+            + task.inputs
+            + _get_all_vars_up_to(i),
             outputs=[task.output, error_message],
         )
 

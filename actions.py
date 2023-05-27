@@ -1,8 +1,9 @@
 import re
+from typing import List
 
 import gradio as gr
 
-from components import all_inputs, all_tasks, Input, MAX_INPUTS, MAX_TASKS, Task
+from components import all_tasks, Input, MAX_INPUTS, MAX_TASKS, Task
 
 
 def add_input(*visibility):
@@ -27,32 +28,54 @@ def remove_input(*visibility):
             )
 
 
-def add_task(*visibility):
-    for i, visible in enumerate(visibility, 1):
-        if not bool(visible):
+def _is_task_row_fully_invisible(row: List[int]) -> bool:
+    print(row)
+    for visible in row:
+        if bool(visible):
+            return False
+    return True
+
+
+def add_task(index, *visibility):
+    visibility = list(visibility)
+    n_avail_tasks = len(Task.AVAILABLE_TASKS)
+
+    for i in range(MAX_TASKS):
+        start_row = i * n_avail_tasks
+        is_row_invisible = _is_task_row_fully_invisible(
+            visibility[start_row : start_row + n_avail_tasks]
+        )
+        if is_row_invisible:
+            unchanged_up_to = start_row + index
             return (
-                [gr.Box.update(visible=True)] * i
-                + [gr.Box.update(visible=False)] * (MAX_TASKS - i)
-                + [1] * i
-                + [0] * (MAX_TASKS - i)
+                [gr.Box.update()] * unchanged_up_to
+                + [gr.Box.update(visible=True)]
+                + [gr.Box.update()] * (len(visibility) - unchanged_up_to - 1)
+                + [gr.Number.update()] * unchanged_up_to
+                + [1]
+                + [gr.Number.update()] * (len(visibility) - unchanged_up_to - 1)
             )
 
 
 def remove_task(*visibility):
-    for i, visible in reversed(list(enumerate(visibility, 1))):
-        if bool(visible):
+    visibility = list(visibility)
+    n_avail_tasks = len(Task.AVAILABLE_TASKS)
+    print(visibility, n_avail_tasks)
+
+    for i in range(MAX_TASKS):
+        start_row = i * n_avail_tasks
+        is_row_invisible = _is_task_row_fully_invisible(
+            visibility[start_row : start_row + n_avail_tasks]
+        )
+        print(start_row, start_row + n_avail_tasks, is_row_invisible)
+        if is_row_invisible:
+            unchanged_up_to = start_row - n_avail_tasks
             return (
-                [gr.Box.update(visible=True)] * (i - 1)
-                + [gr.Box.update(visible=False)] * (MAX_TASKS - i + 1)
-                + [1] * (i - 1)
-                + [0] * (MAX_TASKS - i + 1)
+                [gr.Box.update()] * unchanged_up_to
+                + [gr.Box.update(visible=False)] * (len(visibility) - unchanged_up_to)
+                + [gr.Number.update()] * unchanged_up_to
+                + [0] * (len(visibility) - unchanged_up_to)
             )
-
-
-def _get_all_vars_up_to(to: int):
-    return [in_.output for in_ in all_inputs.values()] + [
-        t.output for i, t in all_tasks.items() if i < to
-    ]
 
 
 def _clear_error():
@@ -75,11 +98,9 @@ def execute_task(id_: int, prev_error_value, n_inputs, *vars_in_scope):
 
     # Put all defined variables into a dict, with names (except task inputs)
     vars = {
-        f"{Input.vname}{i}": input_ for i, input_ in enumerate(input_vars) if input_
+        f"{Input.VNAME}{i}": input_ for i, input_ in enumerate(input_vars) if input_
     }
-    vars.update(
-        {f"{Task.vname}{i}": task for i, task in enumerate(task_outputs)}
-    )
+    vars.update({f"{Task.VNAME}{i}": task for i, task in enumerate(task_outputs)})
     # Get all variables referenced within the task inputs
     prompt_vars = {v for ti in non_empty_task_inputs for v in re.findall("{(.*?)}", ti)}
 
