@@ -26,17 +26,10 @@ class Component(ABC):
     def _render(self, id_: int, visible: bool):
         ...
 
-    @abstractmethod
-    def _execute(self):
-        ...
-
     def render(self) -> None:
         self.component_id = gr.Number(value=self._id, visible=False)
         self.visible = gr.Number(int(self._initial_visibility), visible=False)
         self.gr_component = self._render(self._id, self._initial_visibility)
-
-    def execute(self, *args):
-        return self._execute(*args)
 
 
 class Input(Component):
@@ -50,9 +43,6 @@ class Input(Component):
             visible=visible,
         )
         return self.output
-
-    def _execute(self) -> None:
-        pass
 
 
 class TaskComponent(Component, ABC):
@@ -69,6 +59,10 @@ class TaskComponent(Component, ABC):
     def render(self) -> None:
         super().render()
         self.n_inputs = gr.Number(value=self._n_inputs, visible=False)
+
+    @abstractmethod
+    def execute(self, *vars, vars_in_scope: Dict[str, str]):
+        ...
 
 
 class AITask(TaskComponent):
@@ -96,9 +90,10 @@ class AITask(TaskComponent):
                 )
             return gr_component
 
-    def _execute(self, prompt: str, prompt_vars: Dict[str, str]) -> Optional[str]:
+    def execute(self, prompt: str, vars_in_scope: Dict[str, str]) -> Optional[str]:
         if prompt:
-            formatted_prompt = prompt.format(**prompt_vars)
+            formatted_prompt = prompt.format(**vars_in_scope)
+            print(f"Executing {self.NAME} with prompt :: {formatted_prompt}")
             return ai.llm.next([{"role": "user", "content": formatted_prompt}])
 
     def inputs(self) -> List[gr.Textbox]:
@@ -129,9 +124,10 @@ class VisitURL(TaskComponent):
                 )
             return gr_component
 
-    def _execute(self, url: str, prompt_vars: Dict[str, str]) -> Optional[str]:
+    def execute(self, url: str, vars_in_scope: Dict[str, str]) -> Optional[str]:
         if url:
-            formatted_url = url.format(**prompt_vars)
+            formatted_url = url.format(**vars_in_scope)
+            print(f"Executing {self.NAME} with url :: {formatted_url}")
             return requests.get(formatted_url).text
 
     def inputs(self) -> List[gr.Textbox]:
@@ -144,39 +140,39 @@ class Task:
 
     def __init__(self, id_: int):
         self._id = id_
-        self.active_task = AITask.NAME  # Default
-        self.inner_tasks = {t.NAME: t(self._id, False) for t in self.AVAILABLE_TASKS}
+        self._active_task = AITask.NAME  # Default
+        self._inner_tasks = {t.NAME: t(self._id, False) for t in self.AVAILABLE_TASKS}
 
     def render(self) -> None:
-        for t in self.inner_tasks.values():
+        for t in self._inner_tasks.values():
             t.render()
 
     @property
     def component_id(self) -> gr.Textbox:
-        return self.inner_tasks[self.active_task].component_id
+        return self._inner_tasks[self._active_task].component_id
 
     @property
     def visibilities(self) -> List[gr.Number]:
-        return [t.visible for t in self.inner_tasks.values()]
+        return [t.visible for t in self._inner_tasks.values()]
 
     @property
     def gr_components(self) -> List[gr.Box]:
-        return [t.gr_component for t in self.inner_tasks.values()]
+        return [t.gr_component for t in self._inner_tasks.values()]
 
     @property
     def output(self) -> gr.Textbox:
-        return self.inner_tasks[self.active_task].output
+        return self._inner_tasks[self._active_task].output
 
     @property
     def inputs(self) -> List[gr.Textbox]:
-        return self.inner_tasks[self.active_task].inputs()
+        return self._inner_tasks[self._active_task].inputs()
 
     @property
     def n_inputs(self) -> int:
-        return self.inner_tasks[self.active_task].n_inputs
+        return self._inner_tasks[self._active_task].n_inputs
 
     def execute(self, *args):
-        inner_task = self.inner_tasks[self.active_task]
+        inner_task = self._inner_tasks[self._active_task]
         print(f"Executing {inner_task._source}: {inner_task._id}")
         return inner_task.execute(*args)
 
@@ -189,4 +185,3 @@ all_inputs = {i: Input(i) for i in range(MAX_INPUTS)}
 all_tasks = {i: Task(i) for i in range(MAX_TASKS)}
 
 all_inputs[0]._initial_visibility = True
-all_tasks[0].inner_tasks[all_tasks[0].active_task]._initial_visibility = True
