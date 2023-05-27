@@ -36,7 +36,6 @@ class Component(ABC):
         self.gr_component = self._render(self._id, self._initial_visibility)
 
     def execute(self, *args):
-        print(f"Executing {self._source} :: {self._id}")
         return self._execute(*args)
 
 
@@ -178,7 +177,7 @@ class Task:
 
     def execute(self, *args):
         inner_task = self.inner_tasks[self.active_task]
-        print(f"Executing {inner_task._source} :: {inner_task._id}")
+        print(f"Executing {inner_task._source}: {inner_task._id}")
         return inner_task.execute(*args)
 
 

@@ -23,6 +23,7 @@ def call(
     if not temperature:
         temperature = TEMPERATURE
 
+    print(f"Running OpenAI with :: {locals()}")
     return openai.ChatCompletion.create(  # type: ignore
         model=model,
         messages=messages,
