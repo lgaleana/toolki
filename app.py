@@ -46,7 +46,6 @@ with gr.Blocks() as demo:
         inputs=[],
         outputs=[error_message],
     )
-
     prev_tasks = []
     for i, task in all_tasks.items():
         execution_event = execution_event.then(

@@ -68,6 +68,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
     # If there is an undefined variable referenced, HighlightedText will signal the error.
     undefined_vars = prompt_vars - vars_in_scope.keys()
     if len(undefined_vars) > 0:
+        outputs[active_index] = "ERROR"
         return outputs + [
             gr.HighlightedText.update(
                 value=[
@@ -81,6 +82,17 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
         ]
 
     formatted_input = task_input.format(**vars_in_scope)
-    # Task logic gets inserted into the right index
-    outputs[active_index] = all_tasks[task_id].execute(active_index, formatted_input)
-    return outputs + [error_update]
+    try:
+        # Task logic gets inserted into the right index
+        outputs[active_index] = all_tasks[task_id].execute(
+            active_index, formatted_input
+        )
+        return outputs + [error_update]
+    except Exception as e:
+        outputs[active_index] = "ERROR"
+        return outputs + [
+            gr.HighlightedText.update(
+                value=[(str(e), "ERROR")],
+                visible=True,
+            )
+        ]
