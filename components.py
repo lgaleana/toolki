@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Union
 
 import gradio as gr
-import requests
 
 import ai
 
@@ -99,23 +98,21 @@ class CodeTask(TaskComponent):
                 label="What would you like to do?",
                 interactive=True,
             )
-            with gr.Row():
-                generate_code = gr.Button("Generate code")
-                save_code = gr.Button("Save code")
+            generate_code = gr.Button("Generate code")
             with gr.Row():
                 with gr.Column():
-                    with gr.Accordion(label="Generated code") as accordion:
+                    with gr.Accordion(label="Generated code", open=False):
                         raw_prompt_output = gr.Textbox(
                             label="Raw output",
                             lines=5,
                             interactive=True,
                         )
-                        packages = gr.Textbox(
+                        self.packages = gr.Textbox(
                             label="The following packages will be installed",
                             interactive=True,
                         )
-                        function = gr.Textbox(
-                            label="Function to be executed",
+                        self.function = gr.Textbox(
+                            label="Code to be executed",
                             lines=10,
                             interactive=True,
                         )
@@ -123,7 +120,7 @@ class CodeTask(TaskComponent):
 
                     self.input = gr.Textbox(
                         interactive=True,
-                        placeholder="Input to the function",
+                        placeholder="Input to the code",
                         show_label=False,
                     )
                 with gr.Column():
@@ -136,18 +133,31 @@ class CodeTask(TaskComponent):
             generate_code.click(
                 self.generate_code,
                 inputs=[code_prompt],
-                outputs=[raw_prompt_output, packages, function, error_message],
-            )
-            save_code.click(
-                lambda: gr.Accordion.update(open=False),
-                inputs=[],
-                outputs=[accordion],
+                outputs=[
+                    raw_prompt_output,
+                    self.packages,
+                    self.function,
+                    error_message,
+                ],
             )
 
         return gr_component
 
     @staticmethod
     def generate_code(code_prompt: str):
+        raw_prompt_output = ""
+        packages = ""
+        function = ""
+        error_message = gr.HighlightedText.update(None, visible=False)
+
+        if not code_prompt:
+            return (
+                raw_prompt_output,
+                packages,
+                function,
+                error_message,
+            )
+
         try:
             raw_prompt_output = ai.llm.next(
                 [
@@ -189,25 +199,14 @@ class CodeTask(TaskComponent):
                     )
                 )
         except Exception as e:
-            return (
-                "",
-                "",
-                "",
-                gr.HighlightedText.update(
-                    value=[
-                        (
-                            f"The following variables are being used before being defined :: {str(e)}. Please check your tasks.",
-                            "ERROR",
-                        )
-                    ],
-                    visible=True,
-                ),
+            error_message = gr.HighlightedText.update(
+                value=[(str(e), "ERROR")], visible=True
             )
         return (
             raw_prompt_output,
             packages,
             function,
-            gr.HighlightedText.update(value=None, visible=False),
+            error_message,
         )
 
     def execute(self, url: str) -> str:
