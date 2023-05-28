@@ -51,10 +51,10 @@ with gr.Blocks() as demo:
         execution_event = execution_event.then(
             a.execute_task,
             inputs=[task.component_id, task.active_index, error_message]
-            + task.inputs()
+            + task.inputs
             + [t.active_index for t in prev_tasks]
-            + [o for t in prev_tasks for o in t.outputs()],
-            outputs=task.outputs() + [error_message],
+            + [o for t in prev_tasks for o in t.outputs],
+            outputs=task.outputs + [error_message],
         )
         prev_tasks.append(task)
 

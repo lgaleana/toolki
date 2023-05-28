@@ -38,24 +38,40 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
         - args: Other variables that will be decomposed.
     """
     n_avail_tasks = len(Task.available_tasks)
-    error_update = gr.HighlightedText.update(
-        value=error_value, visible=error_value is not None
-    )
     # We need to return outputs for all tasks in the row.
     outputs = [""] * n_avail_tasks
 
     if active_index is None:  # Active index could be 0 == not active_index
-        return outputs + [error_update]
+        return outputs + [
+            gr.HighlightedText.update(
+                value=error_value, visible=error_value is not None
+            )
+        ]
 
     task_id = int(task_id)
     active_index = int(active_index)
+    inner_n_inputs = all_tasks[task_id].inner_n_inputs
 
-    task_input = args[:n_avail_tasks][active_index]
-    prev_active_indexes = args[n_avail_tasks : n_avail_tasks + task_id]
-    prev_task_outputs = args[n_avail_tasks + task_id :]
+    start_inputs = 0
+    end_inputs = 0
+    end_all_inputs = sum(inner_n_inputs)
+    for i, n in enumerate(inner_n_inputs):
+        if i == active_index:
+            end_inputs = start_inputs + n
+            break
+        start_inputs += n
+    task_inputs = args[start_inputs:end_inputs]
+    prev_active_indexes = args[end_all_inputs : end_all_inputs + task_id]
+    prev_task_outputs = args[end_all_inputs + task_id :]
+    non_empty_inputs = [i for i in task_inputs if i]
 
-    if not task_input:
-        return outputs + [error_update]
+    if len(non_empty_inputs) < len(task_inputs):
+        return outputs + [
+            gr.HighlightedText.update(
+                value=[(f"Missing inputs for Task: {task_id}", "ERROR")],
+                visible=True,
+            )
+        ]
 
     vars_in_scope = {}
     for i, prev_active_index in enumerate(prev_active_indexes):
@@ -63,7 +79,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
             i * n_avail_tasks + int(prev_active_index)
         ]
     # Get all variables referenced within the task input
-    prompt_vars = re.findall("{(.*?)}", task_input)
+    prompt_vars = [v for ti in non_empty_inputs for v in re.findall("{(.*?)}", ti)]
 
     # If there is an undefined variable referenced, HighlightedText will signal the error.
     undefined_vars = prompt_vars - vars_in_scope.keys()
@@ -73,7 +89,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
             gr.HighlightedText.update(
                 value=[
                     (
-                        f"The following variables are being used before being defined :: {undefined_vars}. Please check your tasks.",
+                        f"The variables in Task :: {task_id} are being used before being defined :: {undefined_vars}. Please check your tasks.",
                         "ERROR",
                     )
                 ],
@@ -81,18 +97,21 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
             )
         ]
 
-    formatted_input = task_input.format(**vars_in_scope)
     try:
         # Task logic gets inserted into the right index
         outputs[active_index] = all_tasks[task_id].execute(
-            active_index, formatted_input
+            active_index, *non_empty_inputs, vars_in_scope=vars_in_scope
         )
-        return outputs + [error_update]
-    except Exception as e:
-        outputs[active_index] = "ERROR"
         return outputs + [
             gr.HighlightedText.update(
-                value=[(str(e), "ERROR")],
+                value=error_value, visible=error_value is not None
+            )
+        ]
+    except Exception as e:
+        raise e
+        return outputs + [
+            gr.HighlightedText.update(
+                value=[(f"Error in Task {task_id} :: {e}", "ERROR")],
                 visible=True,
             )
         ]
