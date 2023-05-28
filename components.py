@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Union
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Union
 
 import gradio as gr
 import requests
@@ -8,7 +9,7 @@ import ai
 
 
 class Component(ABC):
-    def __init__(self, id_: int, visible: bool = False):
+    def __init__(self, id_: int):
         # Internal state
         self._id = id_
         self._source = self.__class__.__name__
@@ -81,7 +82,7 @@ class AITask(TaskComponent):
                 self.output = gr.Textbox(
                     label=f"Output: {{{self.vname}{id_}}}",
                     lines=10,
-                    interactive=False,
+                    interactive=True,
                 )
             return gr_component
 
@@ -89,42 +90,143 @@ class AITask(TaskComponent):
         return ai.llm.next([{"role": "user", "content": prompt}])
 
 
-class VisitURL(TaskComponent):
-    name = "Visit URL"
+class CodeTask(TaskComponent):
+    name = "Code Task"
 
-    def _render(self, id_: int) -> gr.Box:
-        with gr.Box(visible=False) as gr_component:
-            gr.Markdown("Get the content from an URL.")
+    def _render(self, id_: int) -> gr.Column:
+        with gr.Column(visible=False) as gr_component:
+            code_prompt = gr.Textbox(
+                label="What would you like to do?",
+                interactive=True,
+            )
             with gr.Row():
-                self.input = gr.Textbox(
-                    interactive=True,
-                    placeholder="URL",
-                    show_label=False,
-                )
-                self.output = gr.Textbox(
-                    label=f"Output: {{{self.vname}{id_}}}",
-                    lines=10,
-                    interactive=False,
-                )
+                generate_code = gr.Button("Generate code")
+                save_code = gr.Button("Save code")
+            with gr.Row():
+                with gr.Column():
+                    with gr.Accordion(label="Generated code") as accordion:
+                        raw_prompt_output = gr.Textbox(
+                            label="Raw output",
+                            lines=5,
+                            interactive=True,
+                        )
+                        packages = gr.Textbox(
+                            label="The following packages will be installed",
+                            interactive=True,
+                        )
+                        function = gr.Textbox(
+                            label="Function to be executed",
+                            lines=10,
+                            interactive=True,
+                        )
+                        error_message = gr.HighlightedText(value=None, visible=False)
+
+                    self.input = gr.Textbox(
+                        interactive=True,
+                        placeholder="Input to the function",
+                        show_label=False,
+                    )
+                with gr.Column():
+                    self.output = gr.Textbox(
+                        label=f"Output: {{{self.vname}{id_}}}",
+                        lines=10,
+                        interactive=True,
+                    )
+
+            generate_code.click(
+                self.generate_code,
+                inputs=[code_prompt],
+                outputs=[raw_prompt_output, packages, function, error_message],
+            )
+            save_code.click(
+                lambda: gr.Accordion.update(open=False),
+                inputs=[],
+                outputs=[accordion],
+            )
+
         return gr_component
 
+    @staticmethod
+    def generate_code(code_prompt: str):
+        try:
+            raw_prompt_output = ai.llm.next(
+                [
+                    {
+                        "role": "user",
+                        "content": f"""
+                        Write a python function for the following request:
+                        {code_prompt}
+
+                        Do't save anything to disk. Instead, the function should return the necessary data.
+                        Include all the necessary imports but put them inside the function itself.
+                        """,
+                    }
+                ],
+                temperature=0,
+            )
+
+            def llm_call(prompt):
+                return ai.llm.next([{"role": "user", "content": prompt}], temperature=0)
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                packages, function = tuple(
+                    executor.map(
+                        llm_call,
+                        [
+                            f"""
+                        The following text should have a python function with some imports that might need to be installed:
+                        {raw_prompt_output}
+
+                        Extract all the python packages, nothing else. Print them in a single python list what can be used with eval().
+                        """,
+                            f"""
+                        The following text should have a python function:
+                        {raw_prompt_output}
+
+                        Exclusively extract the function, nothing else.
+                        """,
+                        ],
+                    )
+                )
+        except Exception as e:
+            return (
+                "",
+                "",
+                "",
+                gr.HighlightedText.update(
+                    value=[
+                        (
+                            f"The following variables are being used before being defined :: {str(e)}. Please check your tasks.",
+                            "ERROR",
+                        )
+                    ],
+                    visible=True,
+                ),
+            )
+        return (
+            raw_prompt_output,
+            packages,
+            function,
+            gr.HighlightedText.update(value=None, visible=False),
+        )
+
     def execute(self, url: str) -> str:
-        return requests.get(url).text
+        ...
 
 
 class Task(Component):
-    available_tasks = [AITask, VisitURL]
+    available_tasks = [AITask, CodeTask]
     vname = "t"
 
     def __init__(self, id_: int, visible: bool = False):
-        super().__init__(id_, visible)
+        super().__init__(id_)
         self._inner_tasks = [t() for t in self.available_tasks]
         self.gr_component: gr.Box
 
     def _render(self, id_: int) -> gr.Box:
         with gr.Box(visible=False) as gr_component:
             self.active_index = gr.Dropdown(
-                [AITask.name, VisitURL.name],
+                [AITask.name, CodeTask.name],
                 label="Pick a new Task",
                 type="index",
             )
@@ -139,7 +241,7 @@ class Task(Component):
         return gr_component
 
     @staticmethod
-    def pick_task(idx):
+    def pick_task(idx: int) -> List[Dict]:
         update = [gr.Box.update(visible=False)] * len(Task.available_tasks)
         update[idx] = gr.Box.update(visible=True)
         return update

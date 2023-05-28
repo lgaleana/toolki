@@ -20,7 +20,7 @@ def call(
 ) -> Dict[str, Any]:
     if not model:
         model = MODEL
-    if not temperature:
+    if temperature is None:
         temperature = TEMPERATURE
 
     return openai.ChatCompletion.create(  # type: ignore
