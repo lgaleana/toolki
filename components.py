@@ -79,13 +79,12 @@ class AITask(TaskComponent):
 
     def _render(self, id_: int) -> gr.Box:
         with gr.Box(visible=False) as gr_component:
-            gr.Markdown("Send a message to ChatGPT.")
             with gr.Row():
                 self.input = gr.Textbox(
-                    label="Prompt",
+                    label="Instructions",
                     lines=10,
                     interactive=True,
-                    placeholder="Example: summarize this text: {v0}",
+                    placeholder="What would you like ChatGPT to do?",
                 )
                 self.output = gr.Textbox(
                     label=f"Output: {{{self.vname}{id_}}}",
