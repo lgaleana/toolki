@@ -14,8 +14,13 @@ with gr.Blocks() as demo:
     <br>
     <br>**AI Task**: Ask ChatGPT to do something for you. Eg, summarize a text.
     <br>**Code Task**: ChatGPT will create a python function to do something for you. Eg, get the text from a website.
+    <br> The code for the Code Tasks must be generated before executing the whole application.
     <br>
-    <br>Max 10 tasks allowed (for now).
+    <br>Output from previous tasks can be referenced in subsequen tasks with {tn}. Max 10 tasks allowed (for now).
+    <br>
+    <br>Example application:
+    <br>1. Code Task: Get the text from a website.
+    <br>2. AI Task: Summarize {t0}.
     """
     )
     for t in all_tasks.values():
