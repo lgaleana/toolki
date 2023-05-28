@@ -9,11 +9,11 @@ with gr.Blocks() as demo:
     gr.Markdown(
         """
     # Toolkit
-    Assemble tasks to build an E2E application.
+    Assemble tasks to build an E2E application. Give instructions with text.
     <br>There are 2 types of tasks.
     <br>
     <br>**AI Task**: Ask ChatGPT to do something for you. Eg, summarize a text.
-    <br>**Code Task**: ChatGPT will create a python function that will be executed on the fly. Eg, get the text from an url.
+    <br>**Code Task**: ChatGPT will create a python function to do something for you. Eg, get the text from a website.
     <br>
     <br>Max 10 tasks allowed (for now).
     """

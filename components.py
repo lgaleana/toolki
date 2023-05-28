@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Union
 
 import gradio as gr
@@ -158,22 +157,23 @@ class CodeTask(TaskComponent):
 
     @staticmethod
     def generate_code(code_prompt: str):
+        import json
+
         raw_prompt_output = ""
-        packages = ""
-        function = ""
         error_message = gr.HighlightedText.update(None, visible=False)
         accordion = gr.Accordion.update()
 
         if not code_prompt:
             return (
                 raw_prompt_output,
-                packages,
-                function,
+                "",
+                "",
                 error_message,
                 accordion,
             )
 
         print(f"Generating code.")
+        parsed_output = {"packages": "", "script": ""}
         try:
             raw_prompt_output = ai.llm.next(
                 [
@@ -191,30 +191,31 @@ class CodeTask(TaskComponent):
                 temperature=0,
             )
 
-            def llm_call(prompt):
-                return ai.llm.next([{"role": "user", "content": prompt}], temperature=0)
-
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                packages, function = tuple(
-                    executor.map(
-                        llm_call,
-                        [
-                            f"""
-                        The following text should have a python function with some imports that need to be installed:
+            parsed_output = json.loads(
+                ai.llm.next(
+                    [
+                        {
+                            "role": "user",
+                            "content": f"""
+                        The following text should have a python function with some imports that might need to be installed:
                         {raw_prompt_output}
 
-                        Extract all the python packages that need to be installed with pip and nothing else.
-                        Print them as a single python list that can be used with eval().
-                        """,
-                            f"""
-                        The following text should have a python function and some imports:
-                        {raw_prompt_output}
+                        Extract all the python packages that need to be installed with pip.
+                        Also extract the function and the imports as a single python script.
 
-                        Exclusively extract the function and the imports, nothing else, so that it can be used with exec().
+                        Write a JSON as follows:
+                        ```
+                            {{
+                                "packages": Python list of packages to be parsed with eval(). If no packages, the list should be empty.
+                                "script": Python script to be executed with exec(). Include only the function and the imports.
+                            }}
+                        ```
                         """,
-                        ],
-                    )
+                        }
+                    ],
+                    temperature=0,
                 )
+            )
         except Exception as e:
             error_message = gr.HighlightedText.update(
                 value=[(str(e), "ERROR")], visible=True
@@ -222,8 +223,8 @@ class CodeTask(TaskComponent):
             accordion = gr.Accordion.update(open=True)
         return (
             raw_prompt_output,
-            packages,
-            function.replace("```python", "").replace("```", ""),
+            parsed_output["packages"],
+            parsed_output["script"],
             error_message,
             accordion,
         )
