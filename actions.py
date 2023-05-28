@@ -13,58 +13,28 @@ def _is_task_row_fully_invisible(row: List[int]) -> bool:
     return True
 
 
-def add_task(index, *visibility):
-    visibility = list(visibility)
-    n_avail_tasks = len(Task.available_tasks)
-
-    for i in range(MAX_TASKS):
-        start_row = i * n_avail_tasks
-        is_row_invisible = _is_task_row_fully_invisible(
-            visibility[start_row : start_row + n_avail_tasks]
-        )
-        if is_row_invisible:
-            unchanged_up_to = start_row + index
+def add_task(*visibilities):
+    for i, visible in enumerate(visibilities, 1):
+        if not bool(visible):
             return (
-                [gr.Number.update()] * i
-                + [index]
-                + [gr.Number.update()] * (MAX_TASKS - i - 1)
-                + [gr.Box.update()] * unchanged_up_to
-                + [gr.Box.update(visible=True)]
-                + [gr.Box.update()] * (len(visibility) - unchanged_up_to - 1)
-                + [gr.Number.update()] * unchanged_up_to
-                + [1]
-                + [gr.Number.update()] * (len(visibility) - unchanged_up_to - 1)
+                [gr.Box.update(visible=True)] * i
+                + [gr.Box.update(visible=False)] * (MAX_TASKS - i)
+                + [1] * i
+                + [0] * (MAX_TASKS - i)
             )
-    return (
-        [gr.Number.update()] * MAX_TASKS
-        + [gr.Box.update()] * len(visibility)
-        + [gr.Number.update()] * len(visibility)
-    )
+    return [gr.Box.update()] * MAX_TASKS + [gr.Number.update()] * MAX_TASKS
 
 
-def remove_task(*visibility):
-    visibility = list(visibility)
-    n_avail_tasks = len(Task.available_tasks)
-
-    for i in range(MAX_TASKS):
-        start_row = i * n_avail_tasks
-        is_row_invisible = _is_task_row_fully_invisible(
-            visibility[start_row : start_row + n_avail_tasks]
-        )
-        if is_row_invisible:
-            unchanged_up_to = start_row - n_avail_tasks
+def remove_task(*visibilities):
+    for i, visible in reversed(list(enumerate(visibilities))):
+        if bool(visible):
             return (
-                [gr.Box.update()] * unchanged_up_to
-                + [gr.Box.update(visible=False)] * (len(visibility) - unchanged_up_to)
-                + [gr.Number.update()] * unchanged_up_to
-                + [0] * (len(visibility) - unchanged_up_to)
+                [gr.Box.update(visible=True)] * i
+                + [gr.Box.update(visible=False)] * (MAX_TASKS - i)
+                + [1] * i
+                + [0] * (MAX_TASKS - i)
             )
-    return (
-        [gr.Box.update()] * (len(visibility) - n_avail_tasks)
-        + [gr.Box.update(visible=False)] * n_avail_tasks
-        + [gr.Number.update()] * (len(visibility) - n_avail_tasks)
-        + [0] * (len(visibility) - n_avail_tasks)
-    )
+    return [gr.Box.update()] * MAX_TASKS + [gr.Number.update()] * MAX_TASKS
 
 
 def execute_task(task_id: int, active_index: int, error_value, *args):

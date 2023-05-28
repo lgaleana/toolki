@@ -1,7 +1,7 @@
 import gradio as gr
 
 import actions as a
-from components import AITask, all_tasks, Tasks, VisitURL
+from components import all_tasks, Tasks
 
 
 with gr.Blocks() as demo:
@@ -21,12 +21,6 @@ with gr.Blocks() as demo:
     )
     for t in all_tasks.values():
         t.render()
-    task_picker = gr.Dropdown(
-        [AITask.name, VisitURL.name],
-        value=AITask.name,
-        label="Pick a new Task",
-        type="index",
-    )
     with gr.Row():
         add_task_btn = gr.Button("Add task")
         remove_task_btn = gr.Button("Remove task")
@@ -36,8 +30,8 @@ with gr.Blocks() as demo:
     # Edit layout
     add_task_btn.click(
         a.add_task,
-        inputs=[task_picker] + Tasks.visibilities(),
-        outputs=Tasks.active_indexes() + Tasks.gr_components() + Tasks.visibilities(),
+        inputs=Tasks.visibilities(),
+        outputs=Tasks.gr_components() + Tasks.visibilities(),
     )
     remove_task_btn.click(
         a.remove_task,
