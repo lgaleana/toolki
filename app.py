@@ -1,13 +1,11 @@
 import gradio as gr
 
 import actions as a
-from components import AITask, all_inputs, all_tasks, VisitURL
+from components import AITask, State as s, VisitURL
 
 
 def _get_all_vars_up_to(to: int):
-    return [in_.output for in_ in all_inputs.values()] + [
-        t.output for i, t in all_tasks.items() if i < to
-    ]
+    return [t.output for i, t in s.all_tasks.items() if i < to]
 
 
 with gr.Blocks() as demo:
@@ -25,16 +23,11 @@ with gr.Blocks() as demo:
     <br>Example prompt: "Translate the following text into spanish and add {v0} more sentences: {t0}".
     """
     )
-    for i in all_inputs.values():
-        i.render()
-    with gr.Row():
-        add_input_btn = gr.Button("Add input variable")
-        remove_input_btn = gr.Button("Remove input variable")
-    for t in all_tasks.values():
+    for t in s.all_tasks.values():
         t.render()
     task_picker = gr.Dropdown(
-        [AITask.NAME, VisitURL.NAME],
-        value=AITask.NAME,
+        [AITask.name, VisitURL.name],
+        value=AITask.name,
         label="Pick a new Task",
         type="index",
     )
@@ -45,38 +38,22 @@ with gr.Blocks() as demo:
     execute_btn = gr.Button("Execute")
 
     # Edit layout
-    add_input_btn.click(
-        a.add_input,
-        inputs=[i.visible for i in all_inputs.values()],
-        outputs=[i.gr_component for i in all_inputs.values()]  # type: ignore
-        + [i.visible for i in all_inputs.values()],
-    )
-    remove_input_btn.click(
-        a.remove_input,
-        inputs=[i.visible for i in all_inputs.values()],
-        outputs=[i.gr_component for i in all_inputs.values()]  # type: ignore
-        + [i.visible for i in all_inputs.values()],
-    )
     add_task_btn.click(
         a.add_task,
-        inputs=[task_picker] + [v for t in all_tasks.values() for v in t.visibilities],  # type: ignore
-        outputs=[c for t in all_tasks.values() for c in t.gr_components]  # type: ignore
-        + [v for t in all_tasks.values() for v in t.visibilities],
+        inputs=[task_picker] + s.task_visibilities(),  # type: ignore
+        outputs=s.task_rows(),
     )
     remove_task_btn.click(
-        a.remove_task,
-        inputs=[v for t in all_tasks.values() for v in t.visibilities],  # type: ignore
-        outputs=[c for t in all_tasks.values() for c in t.gr_components]  # type: ignore
-        + [v for t in all_tasks.values() for v in t.visibilities],
+        a.remove_task, inputs=s.task_visibilities(), outputs=s.task_rows()
     )
 
     # Sequential execution
     execution_event = execute_btn.click(
-        lambda _: gr.HighlightedText.update(value=None, visible=False),
+        lambda: gr.HighlightedText.update(value=None, visible=False),
         inputs=[],
         outputs=[error_message],
     )
-    for i, task in all_tasks.items():
+    for i, task in s.all_tasks.items():
         execution_event = execution_event.then(
             a.execute_task,
             inputs=[task.component_id, error_message, task.n_inputs]

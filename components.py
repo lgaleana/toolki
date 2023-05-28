@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import gradio as gr
 import requests
@@ -8,7 +8,7 @@ import ai
 
 
 class Component(ABC):
-    VNAME = None
+    vname = None
 
     def __init__(self, id_: int, visible: bool = False):
         # Internal state
@@ -33,11 +33,11 @@ class Component(ABC):
 
 
 class Input(Component):
-    VNAME = "v"
+    vname = "v"
 
     def _render(self, id_: int, visible: bool) -> gr.Textbox:
         self.output = gr.Textbox(
-            label=f"Input: {{{self.VNAME}{id_}}}",
+            label=f"Input: {{{self.vname}{id_}}}",
             interactive=True,
             placeholder="Variable value",
             visible=visible,
@@ -46,7 +46,7 @@ class Input(Component):
 
 
 class TaskComponent(Component, ABC):
-    VNAME = "t"
+    vname = "t"
 
     @abstractmethod
     def inputs(self) -> List:
@@ -66,13 +66,13 @@ class TaskComponent(Component, ABC):
 
 
 class AITask(TaskComponent):
-    NAME = "AI Task"
+    name = "AI Task"
 
     def _render(self, id_: int, visible: bool) -> gr.Box:
         with gr.Box(visible=visible) as gr_component:
             gr.Markdown(
                 f"""
-            {self.NAME}
+            {self.name}
             <br> Use this Task to give instructions to ChatGPT.
             """
             )
@@ -84,7 +84,7 @@ class AITask(TaskComponent):
                     placeholder="Example - summarize this text: {v1}",
                 )
                 self.output = gr.Textbox(
-                    label=f"Output: {{{self.VNAME}{id_}}}",
+                    label=f"Output: {{{self.vname}{id_}}}",
                     lines=10,
                     interactive=False,
                 )
@@ -93,7 +93,7 @@ class AITask(TaskComponent):
     def execute(self, prompt: str, vars_in_scope: Dict[str, str]) -> Optional[str]:
         if prompt:
             formatted_prompt = prompt.format(**vars_in_scope)
-            print(f"Executing {self.NAME} with prompt :: {formatted_prompt}")
+            print(f"Executing {self.name} with prompt :: {formatted_prompt}")
             return ai.llm.next([{"role": "user", "content": formatted_prompt}])
 
     def inputs(self) -> List[gr.Textbox]:
@@ -101,13 +101,13 @@ class AITask(TaskComponent):
 
 
 class VisitURL(TaskComponent):
-    NAME = "Visit URL"
+    name = "Visit URL"
 
     def _render(self, id_: int, visible: bool) -> gr.Box:
         with gr.Box(visible=visible) as gr_component:
             gr.Markdown(
                 f"""
-            {self.NAME}
+            {self.name}
             <br> Use this Task to visit an URL and get its content.
             """
             )
@@ -118,7 +118,7 @@ class VisitURL(TaskComponent):
                     show_label=False,
                 )
                 self.output = gr.Textbox(
-                    label=f"Output: {{{self.VNAME}{id_}}}",
+                    label=f"Output: {{{self.vname}{id_}}}",
                     lines=10,
                     interactive=False,
                 )
@@ -127,7 +127,7 @@ class VisitURL(TaskComponent):
     def execute(self, url: str, vars_in_scope: Dict[str, str]) -> Optional[str]:
         if url:
             formatted_url = url.format(**vars_in_scope)
-            print(f"Executing {self.NAME} with url :: {formatted_url}")
+            print(f"Executing {self.name} with url :: {formatted_url}")
             return requests.get(formatted_url).text
 
     def inputs(self) -> List[gr.Textbox]:
@@ -135,13 +135,13 @@ class VisitURL(TaskComponent):
 
 
 class Task:
-    AVAILABLE_TASKS = [AITask, VisitURL]
-    VNAME = "t"
+    available_tasks = [AITask, VisitURL]
+    vname = "t"
 
     def __init__(self, id_: int):
         self._id = id_
-        self._active_index = 0  # Default
-        self._inner_tasks = [t(self._id, False) for t in self.AVAILABLE_TASKS]
+        self._active_index = -1  # Nothing
+        self._inner_tasks = [t(self._id, False) for t in self.available_tasks]
 
     def render(self) -> None:
         self.active_index = gr.Number(self._active_index, visible=False)
@@ -153,12 +153,12 @@ class Task:
         return self._inner_tasks[self._active_index].component_id
 
     @property
-    def visibilities(self) -> List[gr.Number]:
-        return [t.visible for t in self._inner_tasks]
+    def gr_component(self) -> gr.Box:
+        return self._inner_tasks[self._active_index].gr_component
 
     @property
-    def gr_components(self) -> List[gr.Box]:
-        return [t.gr_component for t in self._inner_tasks]
+    def visible(self) -> gr.Number:
+        return self._inner_tasks[self._active_index].visible
 
     @property
     def output(self) -> gr.Textbox:
@@ -178,11 +178,20 @@ class Task:
         return inner_task.execute(*args)
 
 
-MAX_INPUTS = 5
-MAX_TASKS = 10
+class State:
+    MAX_TASKS = 10
+
+    all_tasks = {i: Task(i) for i in range(MAX_TASKS)}
+
+    @classmethod
+    def task_visibilities(cls) -> List:
+        return [it.visible for t in cls.all_tasks.values() for it in t._inner_tasks]
+
+    @classmethod
+    def task_rows(cls) -> List:
+        return [
+            it.gr_component for t in cls.all_tasks.values() for it in t._inner_tasks
+        ] + [it.visible for t in cls.all_tasks.values() for it in t._inner_tasks]
 
 
-all_inputs = {i: Input(i) for i in range(MAX_INPUTS)}
-all_tasks = {i: Task(i) for i in range(MAX_TASKS)}
-
-all_inputs[0]._initial_visibility = True
+tasks = State()
