@@ -237,6 +237,7 @@ class CodeTask(TaskComponent):
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
             __import__(p)
         exec(function, locals())
+        # Should be last function in scope
         self._toolkit_func = list(locals().items())[-1][1]
 
         formatted_input = input.format(**vars_in_scope)

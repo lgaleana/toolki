@@ -41,7 +41,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
     # We need to return outputs for all tasks in the row.
     outputs = [""] * n_avail_tasks
 
-    if active_index is None:  # Active index could be 0 == not active_index
+    if active_index is None or error_value:  # Active index could be 0 == not active_index
         return outputs + [
             gr.HighlightedText.update(
                 value=error_value, visible=error_value is not None
@@ -108,7 +108,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
             )
         ]
     except Exception as e:
-        raise e
+        outputs[active_index] = "ERROR"
         return outputs + [
             gr.HighlightedText.update(
                 value=[(f"Error in Task {task_id} :: {e}", "ERROR")],
