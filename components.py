@@ -115,7 +115,7 @@ class CodeTask(TaskComponent):
             generate_code = gr.Button("Generate code")
             with gr.Row():
                 with gr.Column():
-                    with gr.Accordion(label="Generated code", open=False):
+                    with gr.Accordion(label="Generated code", open=False) as accordion:
                         raw_prompt_output = gr.Textbox(
                             label="Raw output",
                             lines=5,
@@ -151,6 +151,7 @@ class CodeTask(TaskComponent):
                     self.packages,
                     self.function,
                     error_message,
+                    accordion,
                 ],
             )
 
@@ -162,6 +163,7 @@ class CodeTask(TaskComponent):
         packages = ""
         function = ""
         error_message = gr.HighlightedText.update(None, visible=False)
+        accordion = gr.Accordion.update()
 
         if not code_prompt:
             return (
@@ -169,6 +171,7 @@ class CodeTask(TaskComponent):
                 packages,
                 function,
                 error_message,
+                accordion,
             )
 
         print(f"Generating code.")
@@ -201,7 +204,7 @@ class CodeTask(TaskComponent):
                         The following text should have a python function with some imports that might need to be installed:
                         {raw_prompt_output}
 
-                        Extract all the python packages, nothing else. Print them in a single python list that can be used with eval().
+                        Extract all the python packages and nothing else. Print them as a single python list that can be used with eval().
                         """,
                             f"""
                         The following text should have a python function and some imports:
@@ -221,6 +224,7 @@ class CodeTask(TaskComponent):
             packages,
             function,
             error_message,
+            accordion,
         )
 
     @property
