@@ -197,7 +197,7 @@ class CodeTask(TaskComponent):
                     {
                         "role": "user",
                         "content": f"""
-                        The following text should have a python function with some imports that might need to be installed:
+                        The following text has a python function with some imports that might need to be installed:
                         {raw_prompt_output}
 
                         Extract all the python packages that need to be installed with pip, nothing else.
@@ -221,7 +221,6 @@ class CodeTask(TaskComponent):
         except Exception as e:
             import traceback
 
-            print(str(e))
             print(traceback.format_exc())
             error_message = gr.HighlightedText.update(
                 value=[(str(e), "ERROR")], visible=True
