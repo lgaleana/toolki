@@ -132,7 +132,7 @@ class CodeTask(TaskComponent):
                         error_message = gr.HighlightedText(value=None, visible=False)
 
                     self.input = gr.Textbox(
-                        label="Input to the code",
+                        label="Input",
                         interactive=True,
                     )
                 with gr.Column():
@@ -219,10 +219,11 @@ class CodeTask(TaskComponent):
             error_message = gr.HighlightedText.update(
                 value=[(str(e), "ERROR")], visible=True
             )
+            accordion = gr.Accordion.update(open=True)
         return (
             raw_prompt_output,
             packages,
-            function,
+            function.replace("```python", "").replace("```", ""),
             error_message,
             accordion,
         )
@@ -244,6 +245,10 @@ class CodeTask(TaskComponent):
         self._toolkit_func = list(locals().items())[-1][1]
 
         formatted_input = input.format(**vars_in_scope)
+        try:
+            formatted_input = eval(formatted_input)
+        except:
+            pass
         return self._toolkit_func(formatted_input)
 
 
