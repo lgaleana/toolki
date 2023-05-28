@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Union
 
@@ -184,26 +185,25 @@ class CodeTask(TaskComponent):
                         {code_prompt}
 
                         Do't save anything to disk. Instead, the function should return the necessary data.
-                        Include all the necessary imports.
+                        Include all the necessary imports. Make sure that the package names are correct.
                         """,
                     }
                 ],
                 temperature=0,
             )
 
-            parsed_output = json.loads(
-                ai.llm.next(
-                    [
-                        {
-                            "role": "user",
-                            "content": f"""
+            raw_parsed_output = ai.llm.next(
+                [
+                    {
+                        "role": "user",
+                        "content": f"""
                         The following text should have a python function with some imports that might need to be installed:
                         {raw_prompt_output}
 
-                        Extract all the python packages that need to be installed with pip.
-                        Also extract the function and the imports as a single python script.
+                        Extract all the python packages that need to be installed with pip, nothing else.
+                        Extract the function and the imports as a single python script, nothing else.
 
-                        Write a JSON as follows:
+                        Write a JSON:
                         ```
                             {{
                                 "packages": Python list of packages to be parsed with eval(). If no packages, the list should be empty.
@@ -211,12 +211,18 @@ class CodeTask(TaskComponent):
                             }}
                         ```
                         """,
-                        }
-                    ],
-                    temperature=0,
-                )
+                    }
+                ],
+                temperature=0,
+            )
+            parsed_output = json.loads(
+                re.search("({.*})", raw_parsed_output, re.DOTALL).group(1)
             )
         except Exception as e:
+            import traceback
+
+            print(str(e))
+            print(traceback.format_exc())
             error_message = gr.HighlightedText.update(
                 value=[(str(e), "ERROR")], visible=True
             )
@@ -224,7 +230,7 @@ class CodeTask(TaskComponent):
         return (
             raw_prompt_output,
             parsed_output["packages"],
-            parsed_output["script"],
+            parsed_output["script"].replace("```python", "").replace("```", ""),
             error_message,
             accordion,
         )
