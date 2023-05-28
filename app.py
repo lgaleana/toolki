@@ -9,14 +9,13 @@ with gr.Blocks() as demo:
     gr.Markdown(
         """
     # Toolkit
-    Define input variables to be used in your tasks.
-    <br>Task outputs can be used in subsequent tasks.
-    <br>5 input variables and 10 tasks allowed (for now).
+    Assemble tasks to build an E2E application.
+    <br>There are 2 types of tasks.
     <br>
-    <br>AI tasks call into ChatGPT to perform actions.
-    <br>Chain inputs and tasks to build an E2E application.
+    <br>**AI Task**: Ask ChatGPT to do something for you. Eg, summarize a text.
+    <br>**Code Task**: ChatGPT will create a python function that will be executed on the fly. Eg, get the text from an url.
     <br>
-    <br>Example prompt: "Translate the following text into spanish and add {v0} more sentences: {t0}".
+    <br>Max 10 tasks allowed (for now).
     """
     )
     for t in all_tasks.values():
