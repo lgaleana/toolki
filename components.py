@@ -201,10 +201,11 @@ class CodeTask(TaskComponent):
                         llm_call,
                         [
                             f"""
-                        The following text should have a python function with some imports that might need to be installed:
+                        The following text should have a python function with some imports that need to be installed:
                         {raw_prompt_output}
 
-                        Extract all the python packages and nothing else. Print them as a single python list that can be used with eval().
+                        Extract all the python packages that need to be installed with pip and nothing else.
+                        Print them as a single python list that can be used with eval().
                         """,
                             f"""
                         The following text should have a python function and some imports:
@@ -239,7 +240,6 @@ class CodeTask(TaskComponent):
 
         for p in eval(packages):
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
-            __import__(p)
         exec(function, locals())
         # Should be last function in scope
         self._toolkit_func = list(locals().items())[-1][1]
