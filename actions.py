@@ -3,7 +3,7 @@ from typing import List
 
 import gradio as gr
 
-from components import Input, State as s, Task
+from components import MAX_TASKS, all_tasks, Task
 
 
 def _is_task_row_fully_invisible(row: List[int]) -> bool:
@@ -17,7 +17,7 @@ def add_task(index, *visibility):
     visibility = list(visibility)
     n_avail_tasks = len(Task.available_tasks)
 
-    for i in range(s.MAX_TASKS):
+    for i in range(MAX_TASKS):
         start_row = i * n_avail_tasks
         is_row_invisible = _is_task_row_fully_invisible(
             visibility[start_row : start_row + n_avail_tasks]
@@ -25,21 +25,28 @@ def add_task(index, *visibility):
         if is_row_invisible:
             unchanged_up_to = start_row + index
             return (
-                [gr.Box.update()] * unchanged_up_to
+                [gr.Number.update()] * i
+                + [index]
+                + [gr.Number.update()] * (MAX_TASKS - i - 1)
+                + [gr.Box.update()] * unchanged_up_to
                 + [gr.Box.update(visible=True)]
                 + [gr.Box.update()] * (len(visibility) - unchanged_up_to - 1)
                 + [gr.Number.update()] * unchanged_up_to
                 + [1]
                 + [gr.Number.update()] * (len(visibility) - unchanged_up_to - 1)
             )
-    return [gr.Box.update()] * len(visibility) + [gr.Number.update()] * len(visibility)
+    return (
+        [gr.Number.update()] * MAX_TASKS
+        + [gr.Box.update()] * len(visibility)
+        + [gr.Number.update()] * len(visibility)
+    )
 
 
 def remove_task(*visibility):
     visibility = list(visibility)
     n_avail_tasks = len(Task.available_tasks)
 
-    for i in range(s.MAX_TASKS):
+    for i in range(MAX_TASKS):
         start_row = i * n_avail_tasks
         is_row_invisible = _is_task_row_fully_invisible(
             visibility[start_row : start_row + n_avail_tasks]
@@ -60,48 +67,55 @@ def remove_task(*visibility):
     )
 
 
-def execute_task(id_: int, prev_error_value, n_task_inputs, *vars_in_scope):
+def execute_task(task_id: int, active_index: int, error_value, *args):
     """
     Params:
-        - id_: This will tell us which task to execute.
+        - task_id: This will tell us which task to execute.
+        - active_index: The index of the actual task that is visible.
         - prev_error_value: I carry around whether there is an error in the execution, to be displayed at the end.
-        - n_task_inputs: How many inputs does this task have?
-        - vars_in_scope: All variables in scope. This can be a) input varaibles, b) task inputs or c) previous task outputs.
+        - args: Other variables that will be decomposed.
     """
-    n_task_inputs = int(n_task_inputs)
-    task_inputs = vars_in_scope[:n_task_inputs]
-    task_outputs = vars_in_scope[n_task_inputs:]
-    non_empty_task_inputs = [ti for ti in task_inputs if ti]
+    task_id = int(task_id)
+    active_index = int(active_index)
+    n_avail_tasks = len(Task.available_tasks)
 
-    # Put all defined variables into a dict, with names (except task inputs)
-    vars.update(
-        {f"{Task.vname}{i}": task_output for i, task_output in enumerate(task_outputs)}
+    task_input = args[:n_avail_tasks][active_index]
+    prev_active_indexes = args[n_avail_tasks : n_avail_tasks + task_id]
+    prev_task_outputs = args[n_avail_tasks + task_id :]
+
+    error_update = gr.HighlightedText.update(
+        value=error_value, visible=error_value is not None
     )
-    # Get all variables referenced within the task inputs
-    prompt_vars = {v for ti in non_empty_task_inputs for v in re.findall("{(.*?)}", ti)}
+    # We need to return outputs for all tasks in the row.
+    outputs = [""] * n_avail_tasks
+
+    if not task_input:
+        return outputs + [error_update]
+
+    vars_in_scope = {}
+    for i, prev_active_index in enumerate(prev_active_indexes):
+        vars_in_scope[f"{Task.vname}{i}"] = prev_task_outputs[
+            i * n_avail_tasks + int(prev_active_index)
+        ]
+    # Get all variables referenced within the task input
+    prompt_vars = re.findall("{(.*?)}", task_input)
 
     # If there is an undefined variable referenced, HighlightedText will signal the error.
-    undefined_vars = prompt_vars - vars.keys()
+    undefined_vars = prompt_vars - vars_in_scope.keys()
     if len(undefined_vars) > 0:
-        return None, gr.HighlightedText.update(
-            value=[
-                (
-                    f"The following variables are being used before being defined :: {undefined_vars}. Please check your tasks.",
-                    "ERROR",
-                )
-            ],
-            visible=True,
-        )
-    error_update = gr.HighlightedText.update(
-        value=prev_error_value, visible=prev_error_value is not None
-    )
+        return outputs + [
+            gr.HighlightedText.update(
+                value=[
+                    (
+                        f"The following variables are being used before being defined :: {undefined_vars}. Please check your tasks.",
+                        "ERROR",
+                    )
+                ],
+                visible=True,
+            )
+        ]
 
-    if non_empty_task_inputs:
-        # Execute the task logic
-        return (
-            s.all_tasks[id_].execute(*non_empty_task_inputs, vars),
-            error_update,
-        )
-    else:
-        # There is no actionf for this task.
-        return None, error_update
+    formatted_input = task_input.format(**vars_in_scope)
+    # Task logic gets inserted into the right index
+    outputs[active_index] = all_tasks[task_id].execute(active_index, formatted_input)
+    return outputs + [error_update]

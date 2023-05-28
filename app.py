@@ -1,11 +1,7 @@
 import gradio as gr
 
 import actions as a
-from components import AITask, State as s, VisitURL
-
-
-def _get_all_vars_up_to(to: int):
-    return [t.output for i, t in s.all_tasks.items() if i < to]
+from components import AITask, all_tasks, Tasks, VisitURL
 
 
 with gr.Blocks() as demo:
@@ -23,7 +19,7 @@ with gr.Blocks() as demo:
     <br>Example prompt: "Translate the following text into spanish and add {v0} more sentences: {t0}".
     """
     )
-    for t in s.all_tasks.values():
+    for t in all_tasks.values():
         t.render()
     task_picker = gr.Dropdown(
         [AITask.name, VisitURL.name],
@@ -40,26 +36,33 @@ with gr.Blocks() as demo:
     # Edit layout
     add_task_btn.click(
         a.add_task,
-        inputs=[task_picker] + s.task_visibilities(),  # type: ignore
-        outputs=s.task_rows(),
+        inputs=[task_picker] + Tasks.visibilities(),
+        outputs=Tasks.active_indexes() + Tasks.gr_components() + Tasks.visibilities(),
     )
     remove_task_btn.click(
-        a.remove_task, inputs=s.task_visibilities(), outputs=s.task_rows()
+        a.remove_task,
+        inputs=Tasks.visibilities(),
+        outputs=Tasks.gr_components() + Tasks.visibilities(),
     )
 
     # Sequential execution
     execution_event = execute_btn.click(
+        # Clear error message
         lambda: gr.HighlightedText.update(value=None, visible=False),
         inputs=[],
         outputs=[error_message],
     )
-    for i, task in s.all_tasks.items():
+
+    prev_tasks = []
+    for i, task in all_tasks.items():
         execution_event = execution_event.then(
             a.execute_task,
-            inputs=[task.component_id, error_message, task.n_inputs]
-            + task.inputs
-            + _get_all_vars_up_to(i),
-            outputs=[task.output, error_message],
+            inputs=[task.component_id, task.active_index, error_message]
+            + task.inputs()
+            + [t.active_index for t in prev_tasks]
+            + [o for t in prev_tasks for o in t.outputs()],
+            outputs=task.outputs() + [error_message],
         )
+        prev_tasks.append(task)
 
 demo.launch()
