@@ -1,16 +1,8 @@
 import re
-from typing import List
 
 import gradio as gr
 
 from components import MAX_TASKS, all_tasks, Task
-
-
-def _is_task_row_fully_invisible(row: List[int]) -> bool:
-    for visible in row:
-        if bool(visible):
-            return False
-    return True
 
 
 def add_task(*visibilities):
@@ -45,19 +37,22 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
         - prev_error_value: I carry around whether there is an error in the execution, to be displayed at the end.
         - args: Other variables that will be decomposed.
     """
-    task_id = int(task_id)
-    active_index = int(active_index)
     n_avail_tasks = len(Task.available_tasks)
-
-    task_input = args[:n_avail_tasks][active_index]
-    prev_active_indexes = args[n_avail_tasks : n_avail_tasks + task_id]
-    prev_task_outputs = args[n_avail_tasks + task_id :]
-
     error_update = gr.HighlightedText.update(
         value=error_value, visible=error_value is not None
     )
     # We need to return outputs for all tasks in the row.
     outputs = [""] * n_avail_tasks
+
+    if active_index is None:  # Active index could be 0 == not active_index
+        return outputs + [error_update]
+
+    task_id = int(task_id)
+    active_index = int(active_index)
+
+    task_input = args[:n_avail_tasks][active_index]
+    prev_active_indexes = args[n_avail_tasks : n_avail_tasks + task_id]
+    prev_task_outputs = args[n_avail_tasks + task_id :]
 
     if not task_input:
         return outputs + [error_update]

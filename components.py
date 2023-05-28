@@ -51,10 +51,10 @@ class TaskComponent(ABC):
         self.gr_component: gr.Box
         self.input: gr.Textbox
         self.output: gr.Textbox
+        self._source = self.__class__.__name__
 
     def render(self, id_: int) -> None:
         self.gr_component = self._render(id_)
-        self.gr_component.visible = False
 
     @abstractmethod
     def _render(self, id_) -> gr.Box:
@@ -69,11 +69,11 @@ class AITask(TaskComponent):
     name = "AI Task"
 
     def _render(self, id_: int) -> gr.Box:
-        with gr.Box() as gr_component:
-            gr.Markdown("Give instructions to ChatGPT to do something.")
+        with gr.Box(visible=False) as gr_component:
+            gr.Markdown("Send a message to ChatGPT.")
             with gr.Row():
                 self.input = gr.Textbox(
-                    label="Instructions",
+                    label="Prompt",
                     lines=10,
                     interactive=True,
                     placeholder="Example: summarize this text: {v0}",
@@ -93,8 +93,8 @@ class VisitURL(TaskComponent):
     name = "Visit URL"
 
     def _render(self, id_: int) -> gr.Box:
-        with gr.Box() as gr_component:
-            gr.Markdown("Visit an URL and get its content.")
+        with gr.Box(visible=False) as gr_component:
+            gr.Markdown("Get the content from an URL.")
             with gr.Row():
                 self.input = gr.Textbox(
                     interactive=True,
@@ -123,19 +123,17 @@ class Task(Component):
 
     def _render(self, id_: int) -> gr.Box:
         with gr.Box(visible=False) as gr_component:
-            self.task_picker = gr.Dropdown(
+            self.active_index = gr.Dropdown(
                 [AITask.name, VisitURL.name],
-                value=AITask.name,
                 label="Pick a new Task",
                 type="index",
             )
-            self.active_index = gr.Number(-1, visible=False)
             for t in self._inner_tasks:
                 t.render(id_)
 
-            self.task_picker.select(
+            self.active_index.select(
                 self.pick_task,
-                inputs=[self.task_picker],
+                inputs=[self.active_index],
                 outputs=[t.gr_component for t in self._inner_tasks],
             )
         return gr_component
@@ -154,7 +152,7 @@ class Task(Component):
 
     def execute(self, active_index, input):
         inner_task = self._inner_tasks[active_index]
-        print(f"Executing {inner_task._source}: {inner_task._id}")
+        print(f"Executing {self._source}: {self._id}")
         return inner_task.execute(input)
 
 
@@ -169,7 +167,7 @@ class Tasks:
         return [t.visible for t in all_tasks.values()]
 
     @classmethod
-    def active_indexes(cls) -> List[gr.Number]:
+    def active_indexes(cls) -> List[gr.Dropdown]:
         return [t.active_index for t in all_tasks.values()]
 
     @classmethod
