@@ -193,13 +193,13 @@ class CodeTask(TaskComponent):
         try:
             raw_output = llm_call(
                 f"""
-                Write a python function for the following request:
+                Write one python function for the following request:
                 {code_prompt}
 
-                Do't save anything to disk. Instead, the function should return the necessary data.
                 Use pip packages where available.
-                For example, make a google search, use the googlesearch-python package instead of scraping google.
-                Include necessary imports.
+                For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
+                Include only the necessary imports.
+                Instead of printing or saving to disk, the function should return the data.
                 """
             )
             with ThreadPoolExecutor() as executor:
@@ -208,10 +208,10 @@ class CodeTask(TaskComponent):
                         llm_call,
                         [
                             f"""
-                            The following text has a python function with some packages that might need to be installed:
+                            The following text has some python code:
                             {raw_output}
 
-                            Find the packages that need to be installed with pip and get their corresponsing names in pip.
+                            Find the pip packages that need to be installed and get their corresponsing names in pip.
                             Package names in the imports and in pip might be different. Use the correct pip names.
                             
                             Put them in a JSON:
@@ -222,10 +222,10 @@ class CodeTask(TaskComponent):
                             ```
                             """,
                             f"""
-                            The following text has a python function with some imports:
+                            The following text has some python code:
                             {raw_output}
 
-                            Extract the imports and the function definition. Nothing else.
+                            Extract it. Remove anything after the function definition.
                             """,
                         ],
                     )
