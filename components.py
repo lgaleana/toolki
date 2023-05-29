@@ -53,20 +53,29 @@ class TaskComponent(ABC):
         self.output: gr.Textbox
         self._source = self.__class__.__name__
 
+    def format_input(self, input: str, vars_in_scope: Dict[str, Any]) -> str:
+        prompt_vars = [v for v in re.findall("{(.*?)}", input)]
+        undefined_vars = prompt_vars - vars_in_scope.keys()
+        if len(undefined_vars) > 0:
+            raise KeyError(
+                f"The variables :: {undefined_vars} are being used before being defined."
+            )
+        return input.format(**vars_in_scope)
+
     def render(self, id_: int) -> None:
         self.gr_component = self._render(id_)
 
-    @property
     @abstractmethod
-    def inputs(self) -> List[gr.Textbox]:
+    def _render(self, id_) -> gr.Box:
         ...
 
     @property
     def n_inputs(self) -> int:
         return len(self.inputs)
 
+    @property
     @abstractmethod
-    def _render(self, id_) -> gr.Box:
+    def inputs(self) -> List[gr.Textbox]:
         ...
 
     @abstractmethod
@@ -98,7 +107,7 @@ class AITask(TaskComponent):
         return [self.input]
 
     def execute(self, prompt: str, vars_in_scope: Dict[str, Any]) -> str:
-        formatted_prompt = prompt.format(**vars_in_scope)
+        formatted_prompt = self.format_input(prompt, vars_in_scope)
         return ai.llm.next([{"role": "user", "content": formatted_prompt}])
 
 
@@ -115,10 +124,10 @@ class CodeTask(TaskComponent):
             with gr.Row():
                 with gr.Column():
                     with gr.Accordion(label="Generated code", open=False) as accordion:
-                        raw_prompt_output = gr.Textbox(
+                        self.raw_output = gr.Textbox(
                             label="Raw output",
                             lines=5,
-                            interactive=True,
+                            interactive=False,
                         )
                         self.packages = gr.Textbox(
                             label="The following packages will be installed",
@@ -146,7 +155,7 @@ class CodeTask(TaskComponent):
                 self.generate_code,
                 inputs=[code_prompt],
                 outputs=[
-                    raw_prompt_output,
+                    self.raw_output,
                     self.packages,
                     self.function,
                     error_message,
@@ -160,13 +169,14 @@ class CodeTask(TaskComponent):
     def generate_code(code_prompt: str):
         import json
 
-        raw_prompt_output = ""
+        raw_output = ""
+        parsed_output = {"pip": "", "script": ""}
         error_message = gr.HighlightedText.update(None, visible=False)
         accordion = gr.Accordion.update()
 
         if not code_prompt:
             return (
-                raw_prompt_output,
+                "",
                 "",
                 "",
                 error_message,
@@ -174,9 +184,8 @@ class CodeTask(TaskComponent):
             )
 
         print(f"Generating code.")
-        parsed_output = {"packages": "", "script": ""}
         try:
-            raw_prompt_output = ai.llm.next(
+            raw_output = ai.llm.next(
                 [
                     {
                         "role": "user",
@@ -185,30 +194,29 @@ class CodeTask(TaskComponent):
                         {code_prompt}
 
                         Do't save anything to disk. Instead, the function should return the necessary data.
-                        Include all the necessary imports. Make sure that the package names are correct.
+                        Include necessary imports.
                         """,
                     }
                 ],
                 temperature=0,
             )
-
-            raw_parsed_output = ai.llm.next(
+            extractions = ai.llm.next(
                 [
                     {
                         "role": "user",
                         "content": f"""
-                        The following text has a python function with some imports that might need to be installed:
-                        {raw_prompt_output}
+                        The following text has a python function with some packages that might need to be installed:
+                        {raw_output}
 
-                        Extract all the python packages that need to be installed with pip, nothing else.
-                        Extract the function and the imports as a single python script, nothing else.
+                        What is the pip install command to install the needed packages?
+                        Package names in the imports and in pip might be different. Use the correct pip names.
+                        Extract the imports and the function definition.
 
                         Write a JSON:
-                        ```
-                            {{
-                                "packages": Python list of packages to be parsed with eval(). If no packages, the list should be empty.
-                                "script": Python script to be executed with exec(). Include only the function and the imports.
-                            }}
+                        {{
+                            "pip": Pip command. If no packages, empty string.
+                            "script": A python script to be executed with exec(). Include only the imports and the function definition.
+                        }}
                         ```
                         """,
                     }
@@ -216,7 +224,7 @@ class CodeTask(TaskComponent):
                 temperature=0,
             )
             parsed_output = json.loads(
-                re.search("({.*})", raw_parsed_output, re.DOTALL).group(1)
+                re.search("({.*})", extractions, re.DOTALL).group(0)
             )
         except Exception as e:
             import traceback
@@ -227,9 +235,9 @@ class CodeTask(TaskComponent):
             )
             accordion = gr.Accordion.update(open=True)
         return (
-            raw_prompt_output,
-            parsed_output["packages"],
-            parsed_output["script"].replace("```python", "").replace("```", ""),
+            raw_output,
+            parsed_output["pip"],
+            parsed_output["script"],
             error_message,
             accordion,
         )
@@ -239,23 +247,28 @@ class CodeTask(TaskComponent):
         return [self.packages, self.function, self.input]
 
     def execute(
-        self, packages: str, function: str, input: str, vars_in_scope: Dict[str, Any]
+        self, pip_command: str, function: str, input: str, vars_in_scope: Dict[str, Any]
     ):
-        import subprocess
-        import sys
+        import inspect
 
-        for p in eval(packages):
-            subprocess.check_call([sys.executable, "-m", "pip", "install", p])
+        if pip_command:
+            import subprocess
+            import sys
+
+            subprocess.check_call([sys.executable, "-m"] + pip_command.split(" "))
+
         exec(function, locals())
         # Should be last function in scope
         self._toolkit_func = list(locals().items())[-1][1]
 
-        formatted_input = input.format(**vars_in_scope)
-        try:
-            formatted_input = eval(formatted_input)
-        except:
-            pass
-        return self._toolkit_func(formatted_input)
+        if len(inspect.getfullargspec(self._toolkit_func)[0]) > 0:
+            formatted_input = self.format_input(input, vars_in_scope)
+            try:
+                formatted_input = eval(formatted_input)
+            except:
+                pass
+            return self._toolkit_func(formatted_input)
+        return self._toolkit_func()
 
 
 class Task(Component):
