@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Union
@@ -54,6 +55,7 @@ class TaskComponent(ABC):
         self._source = self.__class__.__name__
 
     def format_input(self, input: str, vars_in_scope: Dict[str, Any]) -> str:
+        input = input.strip()
         prompt_vars = [v for v in re.findall("{(.*?)}", input)]
         undefined_vars = prompt_vars - vars_in_scope.keys()
         if len(undefined_vars) > 0:
@@ -133,7 +135,7 @@ class CodeTask(TaskComponent):
                             label="The following packages will be installed",
                             interactive=True,
                         )
-                        self.function = gr.Textbox(
+                        self.script = gr.Textbox(
                             label="Code to be executed",
                             lines=10,
                             interactive=True,
@@ -157,7 +159,7 @@ class CodeTask(TaskComponent):
                 outputs=[
                     self.raw_output,
                     self.packages,
-                    self.function,
+                    self.script,
                     error_message,
                     accordion,
                 ],
@@ -170,62 +172,66 @@ class CodeTask(TaskComponent):
         import json
 
         raw_output = ""
-        parsed_output = {"pip": "", "script": ""}
+        packages = ""
+        script = ""
         error_message = gr.HighlightedText.update(None, visible=False)
         accordion = gr.Accordion.update()
 
         if not code_prompt:
             return (
-                "",
-                "",
-                "",
+                raw_output,
+                packages,
+                script,
                 error_message,
                 accordion,
             )
 
+        def llm_call(prompt):
+            return ai.llm.next([{"role": "user", "content": prompt}], temperature=0)
+
         print(f"Generating code.")
         try:
-            raw_output = ai.llm.next(
-                [
-                    {
-                        "role": "user",
-                        "content": f"""
-                        Write a python function for the following request:
-                        {code_prompt}
+            raw_output = llm_call(
+                f"""
+                Write a python function for the following request:
+                {code_prompt}
 
-                        Do't save anything to disk. Instead, the function should return the necessary data.
-                        Include necessary imports.
-                        """,
-                    }
-                ],
-                temperature=0,
+                Do't save anything to disk. Instead, the function should return the necessary data.
+                Use pip packages where available.
+                For example, make a google search, use the googlesearch-python package instead of scraping google.
+                Include necessary imports.
+                """
             )
-            extractions = ai.llm.next(
-                [
-                    {
-                        "role": "user",
-                        "content": f"""
-                        The following text has a python function with some packages that might need to be installed:
-                        {raw_output}
+            with ThreadPoolExecutor() as executor:
+                packages, script = tuple(
+                    executor.map(
+                        llm_call,
+                        [
+                            f"""
+                            The following text has a python function with some packages that might need to be installed:
+                            {raw_output}
 
-                        What is the pip install command to install the needed packages?
-                        Package names in the imports and in pip might be different. Use the correct pip names.
-                        Extract the imports and the function definition.
+                            Find the packages that need to be installed with pip and get their corresponsing names in pip.
+                            Package names in the imports and in pip might be different. Use the correct pip names.
+                            
+                            Put them in a JSON:
+                            ```
+                            {{
+                                "packages": Python list to be used with eval(). If no packages, empty list.
+                            }}
+                            ```
+                            """,
+                            f"""
+                            The following text has a python function with some imports:
+                            {raw_output}
 
-                        Write a JSON:
-                        {{
-                            "pip": Pip command. If no packages, empty string.
-                            "script": A python script to be executed with exec(). Include only the imports and the function definition.
-                        }}
-                        ```
-                        """,
-                    }
-                ],
-                temperature=0,
-            )
-            parsed_output = json.loads(
-                re.search("({.*})", extractions, re.DOTALL).group(0)
-            )
+                            Extract the imports and the function definition. Nothing else.
+                            """,
+                        ],
+                    )
+                )
+            packages = json.loads(re.search("({.*})", packages, re.DOTALL).group(0))
+            packages = packages["packages"]
         except Exception as e:
             import traceback
 
@@ -236,30 +242,34 @@ class CodeTask(TaskComponent):
             accordion = gr.Accordion.update(open=True)
         return (
             raw_output,
-            parsed_output["pip"],
-            parsed_output["script"],
+            packages,
+            script.replace("```python", "").replace("```", "").strip(),
             error_message,
             accordion,
         )
 
     @property
     def inputs(self) -> List[gr.Textbox]:
-        return [self.packages, self.function, self.input]
+        return [self.packages, self.script, self.input]
 
     def execute(
-        self, pip_command: str, function: str, input: str, vars_in_scope: Dict[str, Any]
+        self, packages: str, function: str, input: str, vars_in_scope: Dict[str, Any]
     ):
         import inspect
+        import subprocess
+        import sys
 
-        if pip_command:
-            import subprocess
-            import sys
+        function = function.strip()
 
-            subprocess.check_call([sys.executable, "-m"] + pip_command.split(" "))
+        for p in eval(packages):
+            subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
         exec(function, locals())
-        # Should be last function in scope
-        self._toolkit_func = list(locals().items())[-1][1]
+        # Looking for the last defined function
+        for var in reversed(locals().values()):
+            if callable(var):
+                self._toolkit_func = var
+                break
 
         if len(inspect.getfullargspec(self._toolkit_func)[0]) > 0:
             formatted_input = self.format_input(input, vars_in_scope)
