@@ -1,5 +1,3 @@
-import re
-
 import gradio as gr
 
 from components import MAX_TASKS, all_tasks, Task

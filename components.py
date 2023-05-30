@@ -24,19 +24,19 @@ class Component(ABC):
     def render(self) -> None:
         self.component_id = gr.Number(value=self._id, visible=False)
         self.visible = gr.Number(0, visible=False)
-        self.gr_component = self._render(self._id)
+        self.gr_component = self._render()
 
     @abstractmethod
-    def _render(self, id_: int) -> Union[gr.Box, gr.Textbox]:
+    def _render(self) -> Union[gr.Box, gr.Textbox]:
         ...
 
 
 class Input(Component):
     vname = "v"
 
-    def _render(self, id_: int) -> gr.Textbox:
+    def _render(self) -> gr.Textbox:
         self.output = gr.Textbox(
-            label=f"Input: {{{self.vname}{id_}}}",
+            label=f"Input: {{{self.vname}{self._id}}}",
             interactive=True,
             placeholder="Variable value",
             visible=False,
@@ -44,15 +44,15 @@ class Input(Component):
         return self.output
 
 
-class TaskComponent(ABC):
+class TaskComponent(Component, ABC):
     vname = "t"
 
-    def __init__(self):
+    def __init__(self, id_: int, value: str = "", visible: bool = False):
+        super().__init__(id_)
+        self._initial_value = value
+        self._initial_visbility = visible
         self.name: str
-        self.gr_component: gr.Box
         self.input: gr.Textbox
-        self.output: gr.Textbox
-        self._source = self.__class__.__name__
 
     def format_input(self, input: str, vars_in_scope: Dict[str, Any]) -> str:
         input = input.strip()
@@ -63,13 +63,6 @@ class TaskComponent(ABC):
                 f"The variables :: {undefined_vars} are being used before being defined."
             )
         return input.format(**vars_in_scope)
-
-    def render(self, id_: int) -> None:
-        self.gr_component = self._render(id_)
-
-    @abstractmethod
-    def _render(self, id_) -> gr.Box:
-        ...
 
     @property
     def n_inputs(self) -> int:
@@ -88,17 +81,18 @@ class TaskComponent(ABC):
 class AITask(TaskComponent):
     name = "AI Task"
 
-    def _render(self, id_: int) -> gr.Box:
-        with gr.Box(visible=False) as gr_component:
+    def _render(self) -> gr.Box:
+        with gr.Box(visible=self._initial_visbility) as gr_component:
             with gr.Row():
                 self.input = gr.Textbox(
                     label="Instructions",
                     lines=10,
                     interactive=True,
                     placeholder="What would you like ChatGPT to do?",
+                    value=self._initial_value,
                 )
                 self.output = gr.Textbox(
-                    label=f"Output: {{{self.vname}{id_}}}",
+                    label=f"Output: {{{self.vname}{self._id}}}",
                     lines=10,
                     interactive=True,
                 )
@@ -116,11 +110,12 @@ class AITask(TaskComponent):
 class CodeTask(TaskComponent):
     name = "Code Task"
 
-    def _render(self, id_: int) -> gr.Column:
-        with gr.Column(visible=False) as gr_component:
+    def _render(self) -> gr.Column:
+        with gr.Column(visible=self._initial_visbility) as gr_component:
             code_prompt = gr.Textbox(
                 label="What would you like to do?",
                 interactive=True,
+                value=self._initial_value,
             )
             generate_code = gr.Button("Generate code")
             with gr.Row():
@@ -148,7 +143,7 @@ class CodeTask(TaskComponent):
                     )
                 with gr.Column():
                     self.output = gr.Textbox(
-                        label=f"Output: {{{self.vname}{id_}}}",
+                        label=f"Output: {{{self.vname}{self._id}}}",
                         lines=10,
                         interactive=True,
                     )
@@ -287,10 +282,10 @@ class Task(Component):
 
     def __init__(self, id_: int):
         super().__init__(id_)
-        self._inner_tasks = [t() for t in self.available_tasks]
+        self._inner_tasks = [t(id_) for t in self.available_tasks]
         self.gr_component: gr.Box
 
-    def _render(self, id_: int) -> gr.Box:
+    def _render(self) -> gr.Box:
         with gr.Box(visible=False) as gr_component:
             self.active_index = gr.Dropdown(
                 [AITask.name, CodeTask.name],
@@ -298,7 +293,7 @@ class Task(Component):
                 type="index",
             )
             for t in self._inner_tasks:
-                t.render(id_)
+                t.render()
 
             self.active_index.select(
                 self.pick_task,
