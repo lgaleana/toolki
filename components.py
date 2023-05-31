@@ -260,18 +260,16 @@ Extract it. Remove anything after the function definition.""",
     ):
         if not function:
             return None
+        function = function.strip()
 
         import inspect
+        import subprocess
+        import sys
 
-        def install():
-            import subprocess
-            import sys
+        for p in eval(packages):
+            print(f"Installing")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
-            for p in eval(packages):
-                print(f"Installing {p}")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", p])
-
-        function = function.strip()
         function = f"import os\nos.environ = {{}}\n\n{function}"
         exec(function, locals())
         # Looking for the last defined function
@@ -287,10 +285,8 @@ Extract it. Remove anything after the function definition.""",
             except:
                 pass
             if formatted_input:
-                install()
                 return self._toolkit_func(formatted_input)
             return None
-        install()
         return self._toolkit_func()
 
 
