@@ -111,13 +111,15 @@ class AITask(TaskComponent):
 class CodeTask(TaskComponent):
     name = "Code Task"
 
-    def __init__(self, id_: int, value: str = "", visible: bool = False, code_value: str = ""):
+    def __init__(
+        self, id_: int, value: str = "", visible: bool = False, code_value: str = ""
+    ):
         super().__init__(id_, value, visible)
         self._initial_code_value = code_value
 
     def _render(self) -> gr.Column:
         with gr.Column(visible=self._initial_visbility) as gr_component:
-            code_prompt = gr.Textbox(
+            self.code_prompt = gr.Textbox(
                 label="What would you like to do?",
                 interactive=True,
                 value=self._initial_code_value,
@@ -126,6 +128,7 @@ class CodeTask(TaskComponent):
             with gr.Row():
                 with gr.Column():
                     with gr.Accordion(label="Generated code", open=False) as accordion:
+                        self.accordion = accordion
                         self.raw_output = gr.Textbox(
                             label="Raw output",
                             lines=5,
@@ -140,12 +143,12 @@ class CodeTask(TaskComponent):
                             lines=10,
                             interactive=True,
                         )
-                        error_message = gr.HighlightedText(value=None, visible=False)
+                        self.error_message = gr.HighlightedText(
+                            value=None, visible=False
+                        )
 
                     self.input = gr.Textbox(
-                        label="Input",
-                        interactive=True,
-                        value=self._initial_value
+                        label="Input", interactive=True, value=self._initial_value
                     )
                 with gr.Column():
                     self.output = gr.Textbox(
@@ -156,13 +159,13 @@ class CodeTask(TaskComponent):
 
             generate_code.click(
                 self.generate_code,
-                inputs=[code_prompt],
+                inputs=[self.code_prompt],
                 outputs=[
                     self.raw_output,
                     self.packages,
                     self.script,
-                    error_message,
-                    accordion,
+                    self.error_message,
+                    self.accordion,
                 ],
             )
 
@@ -338,6 +341,36 @@ class Task(Component):
         inner_task = self._inner_tasks[active_index]
         print(f"Executing {self._source}: {self._id}")
         return inner_task.execute(*args, vars_in_scope)
+
+    @property
+    def generate_code_input(self) -> gr.Textbox:
+        "This function only works for CodeTask"
+        return self._inner_tasks[1].code_prompt
+
+    @property
+    def generate_code_outputs(self):
+        "This function only works for CodeTask"
+        inner_task = self._inner_tasks[1]
+        return (
+            inner_task.raw_output,
+            inner_task.packages,
+            inner_task.script,
+            inner_task.error_message,
+            inner_task.accordion,
+        )
+
+    def generate_code(self, active_index, code_prompt: str = ""):
+        "This function only works for CodeTask"
+        inner_task = self._inner_tasks[active_index]
+        if isinstance(inner_task, CodeTask):
+            return CodeTask.generate_code(code_prompt)
+        return (
+            gr.Textbox.update(),
+            gr.Textbox.update(),
+            gr.Textbox.update(),
+            gr.HighlightedText.update(),
+            gr.Accordion.update(),
+        )
 
 
 MAX_TASKS = 10

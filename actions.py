@@ -98,3 +98,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
                 visible=True,
             )
         ]
+
+
+def generate_code(task_id: int, active_index: int, code_prompt: str):
+    return all_tasks[int(task_id)].generate_code(active_index, code_prompt)
