@@ -268,6 +268,7 @@ Extract it. Remove anything after the function definition.""",
             import sys
 
             for p in eval(packages):
+                print(f"Installing {p}")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
         function = function.strip()
