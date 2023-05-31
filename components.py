@@ -1,5 +1,6 @@
-from concurrent.futures import ThreadPoolExecutor
+import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
@@ -55,14 +56,22 @@ class TaskComponent(Component, ABC):
         self.input: gr.Textbox
 
     def format_input(self, input: str, vars_in_scope: Dict[str, Any]) -> str:
-        input = input.strip()
-        prompt_vars = [v for v in re.findall("{(.*)}", input)]
-        undefined_vars = prompt_vars - vars_in_scope.keys()
-        if len(undefined_vars) > 0:
-            raise KeyError(
-                f"The variables :: {undefined_vars} are being used before being defined."
-            )
-        return input.format(**vars_in_scope)
+        try:
+            return json.loads(input)
+        except:
+            input = input.strip()
+            prompt_vars = [v for v in re.findall("{(.*)}", input)]
+            undefined_vars = prompt_vars - vars_in_scope.keys()
+            if len(undefined_vars) > 0:
+                raise KeyError(
+                    f"The variables :: {undefined_vars} are being used before being defined."
+                )
+            formatted_input = input.format(**vars_in_scope)
+
+        try:
+            return eval(formatted_input)
+        except:
+            return formatted_input
 
     @property
     def n_inputs(self) -> int:
@@ -173,7 +182,6 @@ class CodeTask(TaskComponent):
 
     @staticmethod
     def generate_code(code_prompt: str):
-        import json
         import traceback
 
         raw_output = ""
@@ -202,7 +210,7 @@ class CodeTask(TaskComponent):
 Write one python function for the request above.
 Use pip packages where available.
 For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
-Include only the necessary imports.
+Include the necessary imports.
 Instead of printing or saving to disk, the function should return the data."""
             )
             with ThreadPoolExecutor() as executor:
@@ -215,6 +223,7 @@ Instead of printing or saving to disk, the function should return the data."""
 
 Find the pip packages that need to be installed and get their corresponsing names in pip.
 Package names in the imports and in pip might be different. Use the correct pip names.
+Include only the packages that need to be installed with pip.
                             
 Put them in a valid JSON:
 ```
@@ -280,10 +289,6 @@ Extract it. Remove anything after the function definition.""",
 
         if len(inspect.getfullargspec(self._toolkit_func)[0]) > 0:
             formatted_input = self.format_input(input, vars_in_scope)
-            try:
-                formatted_input = eval(formatted_input)
-            except:
-                pass
             if formatted_input:
                 return self._toolkit_func(formatted_input)
             return None
