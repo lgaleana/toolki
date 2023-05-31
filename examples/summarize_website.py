@@ -6,8 +6,13 @@ import examples.actions as ea
 
 DEMO_ID = "hello"
 tasks = [
-    CodeTask(0, "Say hello world", visible=True),
-    AITask(1, "Explain this to me: {t0}", visible=True),
+    CodeTask(
+        0,
+        "https://openai.com/",
+        visible=True,
+        code_value="Get text from a website (no html). No empty lines.",
+    ),
+    AITask(1, "Summarize: {t0}", visible=True),
 ]
 ea.demo_tasks[DEMO_ID] = tasks
 

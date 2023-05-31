@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import gradio as gr
 
@@ -102,20 +102,25 @@ class AITask(TaskComponent):
     def inputs(self) -> List[gr.Textbox]:
         return [self.input]
 
-    def execute(self, prompt: str, vars_in_scope: Dict[str, Any]) -> str:
+    def execute(self, prompt: str, vars_in_scope: Dict[str, Any]) -> Optional[str]:
         formatted_prompt = self.format_input(prompt, vars_in_scope)
-        return ai.llm.next([{"role": "user", "content": formatted_prompt}])
+        if formatted_prompt:
+            return ai.llm.next([{"role": "user", "content": formatted_prompt}])
 
 
 class CodeTask(TaskComponent):
     name = "Code Task"
+
+    def __init__(self, id_: int, value: str = "", visible: bool = False, code_value: str = ""):
+        super().__init__(id_, value, visible)
+        self._initial_code_value = code_value
 
     def _render(self) -> gr.Column:
         with gr.Column(visible=self._initial_visbility) as gr_component:
             code_prompt = gr.Textbox(
                 label="What would you like to do?",
                 interactive=True,
-                value=self._initial_value,
+                value=self._initial_code_value,
             )
             generate_code = gr.Button("Generate code")
             with gr.Row():
@@ -140,6 +145,7 @@ class CodeTask(TaskComponent):
                     self.input = gr.Textbox(
                         label="Input",
                         interactive=True,
+                        value=self._initial_value
                     )
                 with gr.Column():
                     self.output = gr.Textbox(
@@ -250,15 +256,19 @@ class CodeTask(TaskComponent):
     def execute(
         self, packages: str, function: str, input: str, vars_in_scope: Dict[str, Any]
     ):
+        if not function:
+            return None
+
         import inspect
-        import subprocess
-        import sys
+
+        def install():
+            import subprocess
+            import sys
+
+            for p in eval(packages):
+                subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
         function = function.strip()
-
-        for p in eval(packages):
-            subprocess.check_call([sys.executable, "-m", "pip", "install", p])
-
         exec(function, locals())
         # Looking for the last defined function
         for var in reversed(locals().values()):
@@ -272,7 +282,11 @@ class CodeTask(TaskComponent):
                 formatted_input = eval(formatted_input)
             except:
                 pass
-            return self._toolkit_func(formatted_input)
+            if formatted_input:
+                install()
+                return self._toolkit_func(formatted_input)
+            return None
+        install()
         return self._toolkit_func()
 
 

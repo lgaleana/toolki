@@ -1,7 +1,7 @@
 import gradio as gr
 
 import actions as a
-from examples import hello
+from examples import summarize_website
 from components import all_tasks, Tasks
 
 
@@ -10,18 +10,14 @@ with gr.Blocks() as demo:
     gr.Markdown(
         """
     # Toolkit
-    Assemble tasks to build an E2E application. Give instructions with text.
+    Assemble tasks to build an E2E application with everyday language.
     <br>There are 2 types of tasks.
     <br>
     <br>**AI Task**: Ask ChatGPT to do something for you. Eg, summarize a text.
     <br>**Code Task**: ChatGPT will create a python function to do something for you. Eg, get the text from a website.
-    <br> The code for the Code Tasks must be generated before executing the whole application.
+    <br> Use this task for things that ChatGPT can't do on its own, like access the internet or iterate over 4K+ tokens.
     <br>
     <br>Output from previous tasks can be referenced in subsequen tasks with {tn}. Max 10 tasks allowed (for now).
-    <br>
-    <br>Example application:
-    <br>1. Code Task: Get the text from a website.
-    <br>2. AI Task: Summarize {t0}.
     """
     )
     with gr.Tab("Toolkit"):
@@ -63,7 +59,7 @@ with gr.Blocks() as demo:
                 outputs=task.outputs + [error_message],
             )
             prev_tasks.append(task)
-    with gr.Tab("Example: Hello world"):
-        hello.render()
+    with gr.Tab("Example: Summarize website"):
+        summarize_website.render()
 
 demo.launch()
