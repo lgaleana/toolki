@@ -1,12 +1,12 @@
 from typing import List
 import gradio as gr
 
-from components import Task, TaskComponent
+from components import CodeTask, Task, TaskComponent
 
 
 def demo_buttons(demo_id, tasks: List[TaskComponent]):
     error_message = gr.HighlightedText(value=None, visible=False)
-    execute_btn = gr.Button("Execute")
+    execute_btn = gr.Button("Generate code and execute tasks")
 
     # Sequential execution
     execution_event = execute_btn.click(
@@ -17,6 +17,18 @@ def demo_buttons(demo_id, tasks: List[TaskComponent]):
     )
     prev_tasks = []
     for task in tasks:
+        if isinstance(task, CodeTask):
+            execution_event = execution_event.then(
+                task.generate_code,
+                inputs=[task.code_prompt],
+                outputs=[
+                    task.raw_output,
+                    task.packages,
+                    task.script,
+                    task.error_message,
+                    task.accordion,
+                ],
+            )
         execution_event = execution_event.then(
             execute_task,
             inputs=[demo_id, task.component_id, error_message]

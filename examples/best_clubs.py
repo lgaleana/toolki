@@ -10,7 +10,7 @@ tasks = [
         0,
         "https://openai.com/",
         visible=True,
-        code_value="Get text from a website. No html. No empty lines.",
+        code_value="Make a google search.",
     ),
     AITask(
         1,

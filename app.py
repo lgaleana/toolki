@@ -27,7 +27,7 @@ with gr.Blocks() as demo:
             add_task_btn = gr.Button("Add task")
             remove_task_btn = gr.Button("Remove task")
         error_message = gr.HighlightedText(value=None, visible=False)
-        execute_btn = gr.Button("Execute")
+        execute_btn = gr.Button("Execute tasks")
 
         # Edit layout
         add_task_btn.click(
