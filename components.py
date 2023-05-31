@@ -193,41 +193,35 @@ class CodeTask(TaskComponent):
         print(f"Generating code.")
         try:
             raw_output = llm_call(
-                f"""
-                Write one python function for the following request:
-                {code_prompt}
+                f"""Write one python function for the following request:
+{code_prompt}
 
-                Use pip packages where available.
-                For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
-                Include only the necessary imports.
-                Instead of printing or saving to disk, the function should return the data.
-                """
+Use pip packages where available.
+For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
+Include only the necessary imports.
+Instead of printing or saving to disk, the function should return the data."""
             )
             with ThreadPoolExecutor() as executor:
                 packages, script = tuple(
                     executor.map(
                         llm_call,
                         [
-                            f"""
-                            The following text has some python code:
-                            {raw_output}
+                            f"""The following text has some python code:
+{raw_output}
 
-                            Find the pip packages that need to be installed and get their corresponsing names in pip.
-                            Package names in the imports and in pip might be different. Use the correct pip names.
+Find the pip packages that need to be installed and get their corresponsing names in pip.
+Package names in the imports and in pip might be different. Use the correct pip names.
                             
-                            Put them in a JSON:
-                            ```
-                            {{
-                                "packages": Python list to be used with eval(). If no packages, empty list.
-                            }}
-                            ```
-                            """,
-                            f"""
-                            The following text has some python code:
-                            {raw_output}
+Put them in a JSON:
+```
+{{
+    "packages": Python list to be used with eval(). If no packages, empty list.
+}}
+```""",
+                            f"""The following text has some python code:
+{raw_output}
 
-                            Extract it. Remove anything after the function definition.
-                            """,
+Extract it. Remove anything after the function definition.""",
                         ],
                     )
                 )

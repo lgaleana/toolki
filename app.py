@@ -1,7 +1,7 @@
 import gradio as gr
 
 import actions as a
-from examples import summarize_website
+from examples import generate_ad, summarize_website
 from components import all_tasks, Tasks
 
 
@@ -61,5 +61,7 @@ with gr.Blocks() as demo:
             prev_tasks.append(task)
     with gr.Tab("Example: Summarize website"):
         summarize_website.render()
+    with gr.Tab("Example: Generate ad"):
+        generate_ad.render()
 
 demo.launch()
