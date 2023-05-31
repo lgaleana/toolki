@@ -90,7 +90,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
     except Exception as e:
         import traceback
 
-        print(traceback.format_tb(e.__traceback__))
+        traceback.print_exc()
         outputs[active_index] = "ERROR"
         return outputs + [
             gr.HighlightedText.update(

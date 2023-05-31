@@ -230,7 +230,7 @@ class CodeTask(TaskComponent):
         except Exception as e:
             import traceback
 
-            print(traceback.format_exc())
+            traceback.print_exc()
             error_message = gr.HighlightedText.update(
                 value=[(str(e), "ERROR")], visible=True
             )
