@@ -111,7 +111,9 @@ class AITask(TaskComponent):
 class CodeTask(TaskComponent):
     name = "Code Task"
 
-    def __init__(self, id_: int, value: str = "", visible: bool = False, code_value: str = ""):
+    def __init__(
+        self, id_: int, value: str = "", visible: bool = False, code_value: str = ""
+    ):
         super().__init__(id_, value, visible)
         self._initial_code_value = code_value
 
@@ -143,9 +145,7 @@ class CodeTask(TaskComponent):
                         error_message = gr.HighlightedText(value=None, visible=False)
 
                     self.input = gr.Textbox(
-                        label="Input",
-                        interactive=True,
-                        value=self._initial_value
+                        label="Input", interactive=True, value=self._initial_value
                     )
                 with gr.Column():
                     self.output = gr.Textbox(
@@ -269,6 +269,7 @@ class CodeTask(TaskComponent):
                 subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
         function = function.strip()
+        function = f"import os\nos.environ = {{}}\n\n{function}"
         exec(function, locals())
         # Looking for the last defined function
         for var in reversed(locals().values()):
