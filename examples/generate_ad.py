@@ -47,9 +47,30 @@ demo_tasks[DEMO_ID] = tasks
 
 def render():
     with gr.Tab("Example: Generate an ad"):
-        demo_id = gr.Textbox(DEMO_ID, visible=False)
-        tasks[0].render()
-        tasks[1].render()
-        tasks[2].render()
-        tasks[3].render()
+        with gr.Box():
+            demo_id = gr.Textbox(DEMO_ID, visible=False)
+            gr.Dropdown(
+                value=CodeTask.name,
+                label="Pick a new Task",
+                interactive=False,
+            )
+            tasks[0].render()
+            gr.Dropdown(
+                value=AITask.name,
+                label="Pick a new Task",
+                interactive=False,
+            )
+            tasks[1].render()
+            gr.Dropdown(
+                value=CodeTask.name,
+                label="Pick a new Task",
+                interactive=False,
+            )
+            tasks[2].render()
+            gr.Dropdown(
+                value=AITask.name,
+                label="Pick a new Task",
+                interactive=False,
+            )
+            tasks[3].render()
         demo_buttons(demo_id, tasks)
