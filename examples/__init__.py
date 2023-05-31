@@ -19,7 +19,7 @@ def demo_buttons(demo_id, tasks: List[TaskComponent]):
     for task in tasks:
         if isinstance(task, CodeTask):
             execution_event = execution_event.then(
-                task.generate_code,
+                generate_code,
                 inputs=[task.code_prompt],
                 outputs=[
                     task.raw_output,
@@ -80,3 +80,8 @@ def execute_task(demo_id: str, task_id: int, error_value, *args):
                 visible=True,
             ),
         ]
+
+
+def generate_code(code_prompt: str, error_value):
+    if not error_value and code_prompt:
+        return CodeTask.generate_code(code_prompt)

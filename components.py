@@ -56,7 +56,7 @@ class TaskComponent(Component, ABC):
 
     def format_input(self, input: str, vars_in_scope: Dict[str, Any]) -> str:
         input = input.strip()
-        prompt_vars = [v for v in re.findall("{(.*?)}", input)]
+        prompt_vars = [v for v in re.findall("{(.*)}", input)]
         undefined_vars = prompt_vars - vars_in_scope.keys()
         if len(undefined_vars) > 0:
             raise KeyError(
@@ -174,6 +174,7 @@ class CodeTask(TaskComponent):
     @staticmethod
     def generate_code(code_prompt: str):
         import json
+        import traceback
 
         raw_output = ""
         packages = ""
@@ -196,9 +197,9 @@ class CodeTask(TaskComponent):
         print(f"Generating code.")
         try:
             raw_output = llm_call(
-                f"""Write one python function for the following request:
-{code_prompt}
+                f"""{code_prompt}
 
+Write one python function for the request above.
 Use pip packages where available.
 For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
 Include only the necessary imports.
@@ -215,7 +216,7 @@ Instead of printing or saving to disk, the function should return the data."""
 Find the pip packages that need to be installed and get their corresponsing names in pip.
 Package names in the imports and in pip might be different. Use the correct pip names.
                             
-Put them in a JSON:
+Put them in a valid JSON:
 ```
 {{
     "packages": Python list to be used with eval(). If no packages, empty list.
@@ -228,11 +229,15 @@ Extract it. Remove anything after the function definition.""",
                         ],
                     )
                 )
-            packages = json.loads(re.search("({.*})", packages, re.DOTALL).group(0))
-            packages = packages["packages"]
+            for packages in re.findall("{.*}", packages, re.DOTALL):
+                try:
+                    packages = json.loads(packages)
+                    packages = packages["packages"]
+                except:
+                    print(packages)
+                    traceback.print_exc()
+                    packages = "ERROR"
         except Exception as e:
-            import traceback
-
             traceback.print_exc()
             error_message = gr.HighlightedText.update(
                 value=[(str(e), "ERROR")], visible=True

@@ -10,7 +10,7 @@ tasks = [
         0,
         "https://openai.com/",
         visible=True,
-        code_value="Get text from a website. No html. No empty lines.",
+        code_value="Get text from a website. No html. No empty lines. Use the correct headers.",
     ),
     AITask(
         1,
@@ -28,7 +28,7 @@ Avoid logos.""",
         2,
         "{t1}",
         visible=True,
-        code_value="Use openai key <put_your_key_in_here>. Generate an image from a prompt. Return the url.",
+        code_value="Use openai key <put_your_openai_key_here>. Generate an image from a prompt. Return the url. (not the content)",
     ),
     AITask(
         1,
@@ -46,9 +46,10 @@ demo_tasks[DEMO_ID] = tasks
 
 
 def render():
-    demo_id = gr.Textbox(DEMO_ID, visible=False)
-    tasks[0].render()
-    tasks[1].render()
-    tasks[2].render()
-    tasks[3].render()
-    demo_buttons(demo_id, tasks)
+    with gr.Tab("Example: Generate an ad"):
+        demo_id = gr.Textbox(DEMO_ID, visible=False)
+        tasks[0].render()
+        tasks[1].render()
+        tasks[2].render()
+        tasks[3].render()
+        demo_buttons(demo_id, tasks)

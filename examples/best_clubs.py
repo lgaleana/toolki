@@ -8,37 +8,23 @@ DEMO_ID = __name__
 tasks = [
     CodeTask(
         0,
-        "https://openai.com/",
+        "nightlife in NYC",
         visible=True,
         code_value="Make a google search.",
     ),
-    AITask(
-        1,
-        """Your goal is to create an ad for a website.
-You will use an AI image generator to generate an image for your ad.
-
-Here is the text from the website:
-{t0}
-
-Create a prompt for the AI image generator.
-Avoid logos.""",
-        visible=True,
-    ),
     CodeTask(
-        2,
-        "{t1}",
+        1,
+        "{t0}",
         visible=True,
-        code_value="Use openai key <put_your_key_in_here>. Generate an image from a prompt. Return the url.",
+        code_value="Get the main content from a list of urls. Top 5. No html. No empty lines. Include only the first 3000 characters. Use the correct headers.",
     ),
     AITask(
-        1,
-        """Here is the text from a website:
-{t0}
-
-Here is a prompt that was used by an AI image generator to generate an image for an ad:
+        2,
+        """Here is the content from a list of websites:
 {t1}
 
-Consider the website content and the prompt to create a headline for an ad.""",
+What is the overal topic?
+Extract the most relevant points.""",
         visible=True,
     ),
 ]
@@ -46,9 +32,9 @@ demo_tasks[DEMO_ID] = tasks
 
 
 def render():
-    demo_id = gr.Textbox(DEMO_ID, visible=False)
-    tasks[0].render()
-    tasks[1].render()
-    tasks[2].render()
-    tasks[3].render()
-    demo_buttons(demo_id, tasks)
+    with gr.Tab("Example: Nightlife in NYC"):
+        demo_id = gr.Textbox(DEMO_ID, visible=False)
+        tasks[0].render()
+        tasks[1].render()
+        tasks[2].render()
+        demo_buttons(demo_id, tasks)

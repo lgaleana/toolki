@@ -18,7 +18,8 @@ demo_tasks[DEMO_ID] = tasks
 
 
 def render():
-    demo_id = gr.Textbox(DEMO_ID, visible=False)
-    tasks[0].render()
-    tasks[1].render()
-    demo_buttons(demo_id, tasks)
+    with gr.Tab("Example: Summarize a website"):
+        demo_id = gr.Textbox(DEMO_ID, visible=False)
+        tasks[0].render()
+        tasks[1].render()
+        demo_buttons(demo_id, tasks)
