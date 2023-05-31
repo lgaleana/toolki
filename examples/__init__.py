@@ -20,7 +20,7 @@ def demo_buttons(demo_id, tasks: List[TaskComponent]):
         if isinstance(task, CodeTask):
             execution_event = execution_event.then(
                 generate_code,
-                inputs=[task.code_prompt],
+                inputs=[task.code_prompt, error_message],
                 outputs=[
                     task.raw_output,
                     task.packages,
