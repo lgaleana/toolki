@@ -28,7 +28,7 @@ Avoid logos.""",
         2,
         "{t1}",
         visible=True,
-        code_value="Use openai key <put_your_openai_key_here>. Generate an image from a prompt. Return the url. (not the content)",
+        code_value="Use openai to generate an image from a prompt. Use they key {your_key}. Return the url.",
     ),
     AITask(
         1,

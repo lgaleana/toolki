@@ -201,12 +201,11 @@ class CodeTask(TaskComponent):
         print(f"Generating code.")
         try:
             raw_output = llm_call(
-                f"""I want you to write a python function to:
+                f"""Write a python function to:
                 {code_prompt}
 
-Name the function toolkit.
+Write the code for the function. Name the function toolkit.
 Use pip packages where available.
-For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
 Include the necessary imports.
 Instead of printing or saving to disk, the function should return the data."""
             )
@@ -225,7 +224,7 @@ Include only the packages that need to be installed with pip.
 Put them in a valid JSON:
 ```
 {{
-    "packages": Python list to be used with eval(). If no packages, empty list.
+    "packages": List of packages. If no packages, empty list.
 }}
 ```""",
                             f"""The following text has some python code:

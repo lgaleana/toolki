@@ -1,7 +1,7 @@
 import gradio as gr
 
 import actions as a
-from examples import authenticate_google, best_clubs, generate_ad, summarize_website
+from examples import authenticate_google, best_clubs, generate_ad, seo, summarize_website
 from components import all_tasks, Tasks
 
 
@@ -15,7 +15,7 @@ with gr.Blocks() as demo:
     <br>
     <br>**AI Task**: Ask ChatGPT to do something for you. Eg, summarize a text.
     <br>**Code Task**: You will need code to do certain things that ChatGPT can't do, like access the internet or iterate over 4k+ tokens.
-    <br> With this task, ChatGPT will generate code to do something. The code must be generated before executing the task.
+    <br> With this task, ChatGPT will generate code and then execute. The code must be generated before executing all tasks.
     <br>
     <br>Output from previous tasks can be referenced in subsequen tasks with {tn}. Max 10 tasks allowed (for now).
     """
@@ -62,8 +62,9 @@ with gr.Blocks() as demo:
 
     # Examples
     summarize_website.render()
-    generate_ad.render()
+    seo.render()
     best_clubs.render()
+    generate_ad.render()
     authenticate_google.render()
 
 demo.launch()
