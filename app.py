@@ -15,7 +15,7 @@ with gr.Blocks() as demo:
     <br>
     <br>**AI Task**: Ask ChatGPT to do something for you. Eg, summarize a text.
     <br>**Code Task**: You will need code to do certain things that ChatGPT can't do, like access the internet or iterate over 4k+ tokens.
-    <br> With this task, ChatGPT will generate code for you that can be executed on the fly. The code must be generated before executing the task.
+    <br> With this task, ChatGPT will generate code to do something. The code must be generated before executing the task.
     <br>
     <br>Output from previous tasks can be referenced in subsequen tasks with {tn}. Max 10 tasks allowed (for now).
     """
