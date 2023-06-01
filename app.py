@@ -1,7 +1,7 @@
 import gradio as gr
 
 import actions as a
-from examples import best_clubs, generate_ad, summarize_website
+from examples import authenticate_google, best_clubs, generate_ad, summarize_website
 from components import all_tasks, Tasks
 
 
@@ -65,5 +65,6 @@ with gr.Blocks() as demo:
     summarize_website.render()
     generate_ad.render()
     best_clubs.render()
+    authenticate_google.render()
 
 demo.launch()
