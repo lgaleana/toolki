@@ -33,20 +33,22 @@ demo_tasks[DEMO_ID] = tasks
 
 def render():
     with gr.Tab("Example: Nightlife in NYC"):
+        demo_id = gr.Textbox(DEMO_ID, visible=False)
         with gr.Box():
-            demo_id = gr.Textbox(DEMO_ID, visible=False)
             gr.Dropdown(
                 value=CodeTask.name,
                 label="Pick a new Task",
                 interactive=False,
             )
             tasks[0].render()
+        with gr.Box():
             gr.Dropdown(
                 value=CodeTask.name,
                 label="Pick a new Task",
                 interactive=False,
             )
             tasks[1].render()
+        with gr.Box():
             gr.Dropdown(
                 value=AITask.name,
                 label="Pick a new Task",

@@ -122,16 +122,17 @@ class CodeTask(TaskComponent):
         super().__init__(id_, value, visible)
         self._initial_code_value = code_value
 
-    def _render(self) -> gr.Column:
-        with gr.Column(visible=self._initial_visbility) as gr_component:
-            self.code_prompt = gr.Textbox(
-                label="What would you like to do?",
-                interactive=True,
-                value=self._initial_code_value,
-            )
-            generate_code = gr.Button("Generate code")
+    def _render(self) -> gr.Box:
+        with gr.Box(visible=self._initial_visbility) as gr_component:
             with gr.Row():
                 with gr.Column():
+                    self.code_prompt = gr.Textbox(
+                        label="What would you like to do?",
+                        interactive=True,
+                        value=self._initial_code_value,
+                        lines=3,
+                    )
+                    generate_code = gr.Button("Generate code")
                     with gr.Accordion(label="Generated code", open=False) as accordion:
                         self.accordion = accordion
                         self.raw_output = gr.Textbox(
@@ -158,7 +159,7 @@ class CodeTask(TaskComponent):
                 with gr.Column():
                     self.output = gr.Textbox(
                         label=f"Output: {{{self.vname}{self._id}}}",
-                        lines=10,
+                        lines=13,
                         interactive=True,
                     )
 
