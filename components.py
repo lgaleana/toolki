@@ -1,5 +1,6 @@
 import json
 import re
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
@@ -65,7 +66,7 @@ class TaskComponent(Component, ABC):
             undefined_vars = prompt_vars - vars_in_scope.keys()
             if len(undefined_vars) > 0:
                 raise KeyError(
-                    f"The variables :: {undefined_vars} are being used before being defined."
+                    f"The variables :: {undefined_vars} in task :: {self._id} are being used before being defined."
                 )
             return input.format(**vars_in_scope)
 
@@ -127,7 +128,7 @@ class CodeTask(TaskComponent):
             with gr.Row():
                 with gr.Column():
                     self.code_prompt = gr.Textbox(
-                        label="What would you like to do?",
+                        label="What would you like the code to do?",
                         interactive=True,
                         value=self._initial_code_value,
                         lines=3,
@@ -159,7 +160,7 @@ class CodeTask(TaskComponent):
                 with gr.Column():
                     self.output = gr.Textbox(
                         label=f"Output: {{{self.vname}{self._id}}}",
-                        lines=13,
+                        lines=14,
                         interactive=True,
                     )
 
@@ -179,8 +180,6 @@ class CodeTask(TaskComponent):
 
     @staticmethod
     def generate_code(code_prompt: str):
-        import traceback
-
         raw_output = ""
         packages = ""
         script = ""
@@ -202,9 +201,10 @@ class CodeTask(TaskComponent):
         print(f"Generating code.")
         try:
             raw_output = llm_call(
-                f"""{code_prompt}
+                f"""I want you to write a python function to:
+                {code_prompt}
 
-Write one python function for the request above.
+Name the function toolkit.
 Use pip packages where available.
 For example, if you wanted to make a google search, use the googlesearch-python package instead of scraping google.
 Include the necessary imports.
@@ -262,40 +262,46 @@ Extract it. Remove anything after the function definition.""",
         return [self.packages, self.script, self.input]
 
     def execute(
-        self, packages: str, function: str, input: str, vars_in_scope: Dict[str, Any]
+        self, packages: str, script: str, input: str, vars_in_scope: Dict[str, Any]
     ):
-        if not function:
+        if not script:
             return None
-        function = function.strip()
+        script = script.strip()
+
+        formatted_input = self.format_input(input, vars_in_scope)
 
         import inspect
         import subprocess
         import sys
 
+        def run(toolkit_func):
+            if len(inspect.getfullargspec(toolkit_func)[0]) > 0:
+                if formatted_input:
+                    try:
+                        return toolkit_func(eval(formatted_input))
+                    except:
+                        return toolkit_func(formatted_input)
+                raise ValueError(f"Code for task :: {self._id} needs an input.")
+            return toolkit_func()
+
         for p in eval(packages):
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
-        function = f"import os\nos.environ = {{}}\n\n{function}"
-        exec(function, locals())
+        script = f"import os\nos.environ = {{}}\n\n{script}"
+        exec(script, locals())
 
-        for var in reversed(list(locals().values())):
+        locals_ = locals()
+        if "toolkit" in locals_:
+            toolkit_func = locals_["toolkit"]
+            return run(toolkit_func)
+        for var in reversed(locals_.values()):
             # Try to run all local functions
             if callable(var):
-                print(var)
-                _toolkit_func = var
                 try:
-                    if len(inspect.getfullargspec(_toolkit_func)[0]) > 0:
-                        formatted_input = self.format_input(input, vars_in_scope)
-                        if formatted_input:
-                            try:
-                                return _toolkit_func(eval(formatted_input))
-                            except:
-                                return _toolkit_func(formatted_input)
-                        return None  # No input, so it doesn't run
-                    return _toolkit_func()
+                    return run(var)
                 except:
-                    pass
-        raise RuntimeError("Unable to run the code")
+                    continue
+        raise RuntimeError(f"Unable to run the code for task :: {self._id}")
 
 
 class Task(Component):

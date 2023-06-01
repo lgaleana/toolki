@@ -91,7 +91,7 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
         import traceback
 
         traceback.print_exc()
-        outputs[active_index] = "ERROR"
+        outputs[active_index] = f"ERROR :: {e}"
         return outputs + [
             gr.HighlightedText.update(
                 value=[(f"Error in Task {task_id} :: {e}", "ERROR")],
