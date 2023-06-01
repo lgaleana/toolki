@@ -10,7 +10,7 @@ tasks = [
         0,
         "https://techcrunch.com",
         visible=True,
-        code_value="Get the text from a website. Remove empty lines.",
+        code_value="Get text from a website. Remove any html and empty lines.",
     ),
     AITask(
         1,
