@@ -47,7 +47,7 @@ def render():
             )
             tasks[1].render()
             gr.Dropdown(
-                value=CodeTask.name,
+                value=AITask.name,
                 label="Pick a new Task",
                 interactive=False,
             )
