@@ -57,7 +57,8 @@ class TaskComponent(Component, ABC):
 
     def format_input(self, input: str, vars_in_scope: Dict[str, Any]) -> str:
         try:
-            return json.loads(input)
+            json.loads(input)
+            return input
         except:
             input = input.strip()
             prompt_vars = [v for v in re.findall("{(.*)}", input)]
@@ -66,12 +67,7 @@ class TaskComponent(Component, ABC):
                 raise KeyError(
                     f"The variables :: {undefined_vars} are being used before being defined."
                 )
-            formatted_input = input.format(**vars_in_scope)
-
-        try:
-            return eval(formatted_input)
-        except:
-            return formatted_input
+            return input.format(**vars_in_scope)
 
     @property
     def n_inputs(self) -> int:
@@ -276,23 +272,29 @@ Extract it. Remove anything after the function definition.""",
         import sys
 
         for p in eval(packages):
-            print(f"Installing")
             subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
         function = f"import os\nos.environ = {{}}\n\n{function}"
         exec(function, locals())
-        # Looking for the last defined function
-        for var in reversed(locals().values()):
-            if callable(var):
-                self._toolkit_func = var
-                break
 
-        if len(inspect.getfullargspec(self._toolkit_func)[0]) > 0:
-            formatted_input = self.format_input(input, vars_in_scope)
-            if formatted_input:
-                return self._toolkit_func(formatted_input)
-            return None
-        return self._toolkit_func()
+        for var in reversed(list(locals().values())):
+            # Try to run all local functions
+            if callable(var):
+                print(var)
+                _toolkit_func = var
+                try:
+                    if len(inspect.getfullargspec(_toolkit_func)[0]) > 0:
+                        formatted_input = self.format_input(input, vars_in_scope)
+                        if formatted_input:
+                            try:
+                                return _toolkit_func(eval(formatted_input))
+                            except:
+                                return _toolkit_func(formatted_input)
+                        return None  # No input, so it doesn't run
+                    return _toolkit_func()
+                except:
+                    pass
+        raise RuntimeError("Unable to run the code")
 
 
 class Task(Component):
