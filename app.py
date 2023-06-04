@@ -1,7 +1,13 @@
 import gradio as gr
 
 import actions as a
-from examples import authenticate_google, best_clubs, generate_ad, seo, summarize_website
+from examples import (
+    authenticate_google,
+    best_clubs,
+    generate_ad,
+    seo,
+    summarize_website,
+)
 from components import all_tasks, Tasks
 
 
@@ -17,7 +23,7 @@ with gr.Blocks() as demo:
     <br>**Code Task**: You will need code to do certain things that ChatGPT can't do, like access the internet or iterate over 4k+ tokens.
     <br> With this task, ChatGPT will generate code and then execute it. The code must be generated before executing all tasks.
     <br>
-    <br>Output from previous tasks can be referenced in subsequen tasks with {tn}. Max 10 tasks allowed (for now).
+    <br>Output from other tasks can be referenced in the current task with {tn}. Max 10 tasks allowed (for now).
     """
     )
     with gr.Tab("Toolkit"):
@@ -48,17 +54,15 @@ with gr.Blocks() as demo:
             inputs=[],
             outputs=[error_message],
         )
-        prev_tasks = []
         for i, task in all_tasks.items():
             execution_event = execution_event.then(
                 a.execute_task,
                 inputs=[task.component_id, task.active_index, error_message]
                 + task.inputs
-                + [t.active_index for t in prev_tasks]
-                + [o for t in prev_tasks for o in t.outputs],
+                + [t.active_index for t in all_tasks.values() if t != task]
+                + [o for t in all_tasks.values() if t != task for o in t.outputs],
                 outputs=task.outputs + [error_message],
             )
-            prev_tasks.append(task)
 
     # Examples
     summarize_website.render()
