@@ -54,13 +54,13 @@ with gr.Blocks() as demo:
             inputs=[],
             outputs=[error_message],
         )
-        for i, task in all_tasks.items():
+        for task in all_tasks.values():
             execution_event = execution_event.then(
                 a.execute_task,
                 inputs=[task.component_id, task.active_index, error_message]
                 + task.inputs
-                + [t.active_index for t in all_tasks.values() if t != task]
-                + [o for t in all_tasks.values() if t != task for o in t.outputs],
+                + [t.active_index for t in all_tasks.values()]
+                + [o for t in all_tasks.values() for o in t.outputs],
                 outputs=task.outputs + [error_message],
             )
 

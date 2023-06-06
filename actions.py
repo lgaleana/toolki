@@ -55,8 +55,8 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
     # - start_inputs: Where the active task inputs start within args.
     # - end_inputs: End of the active task inputs.
     # - task_inputs: The active task inputs.
-    # - other_active_indexes: Indexes of the active tasks in the other tasks.
-    # - other_task_outputs: Outputs of every other task.
+    # - all_active_indexes: Indexes of the active tasks in the other tasks.
+    # - all_task_outputs: Outputs of every other task.
     start_inputs = 0
     end_inputs = 0
     end_all_inputs = sum(inner_n_inputs)
@@ -66,8 +66,8 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
             break
         start_inputs += n
     task_inputs = args[start_inputs:end_inputs]
-    other_active_indexes = args[end_all_inputs : end_all_inputs + MAX_TASKS - 1]
-    other_task_outputs = args[end_all_inputs + MAX_TASKS - 1 :]
+    all_active_indexes = args[end_all_inputs : end_all_inputs + MAX_TASKS]
+    all_task_outputs = args[end_all_inputs + MAX_TASKS :]
 
     # If no inputs, skip
     non_empty_inputs = [i for i in task_inputs if i]
@@ -76,10 +76,9 @@ def execute_task(task_id: int, active_index: int, error_value, *args):
 
     # Put task outputs in a dictionary with names.
     vars_in_scope = {}
-    for i, other_active_index in enumerate(other_active_indexes):
+    for i, other_active_index in enumerate(all_active_indexes):
         if other_active_index is not None:
-            other_task_id = i if i < task_id else i + 1
-            vars_in_scope[f"{Task.vname}{other_task_id}"] = other_task_outputs[
+            vars_in_scope[f"{Task.vname}{i}"] = all_task_outputs[
                 i * n_avail_tasks + int(other_active_index)
             ]
 
